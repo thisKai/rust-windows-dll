@@ -7,5 +7,9 @@ edition = "2018"
 [lib]
 proc-macro = true
 
-[dependencies]
-syn = "0.15.26"
+[dependencies.syn]
+version = "0.15.26"
+features = [
+    "full",
+    "extra-traits",
+]
