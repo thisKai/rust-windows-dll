@@ -10,10 +10,21 @@ proc-macro = true
 [dependencies]
 proc-macro2 = "0.4.30"
 quote = "0.6.13"
+wchar = "0.5.0"
 
 [dependencies.syn]
 version = "0.15.42"
 features = [
     "full",
     "extra-traits",
+]
+
+[dependencies.winapi]
+version = "0.3.7"
+features = [
+    "ntdef",
+    "minwindef",
+    "winerror",
+    "libloaderapi",
+    "winuser",
 ]
