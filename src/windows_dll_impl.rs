@@ -3,7 +3,6 @@ use syn::{
     Result,
     parse,
     Lit,
-    LitInt,
     LitStr,
     ItemForeignMod,
     ForeignItem,
@@ -16,6 +15,8 @@ use quote::quote;
 
 pub fn parse_windows_dll(metadata: TokenStream, input: TokenStream) -> Result<proc_macro2::TokenStream> {
     let dll_name = parse_dll_name(metadata)?;
+    let functions = parse_extern_block(&dll_name, input)?;
+
     Ok(quote! {
         use std::mem::transmute;
 
@@ -42,15 +43,17 @@ pub fn parse_windows_dll(metadata: TokenStream, input: TokenStream) -> Result<pr
 
             GetProcAddress(lib, MAKEINTRESOURCEA(entry_ordinal))
         }
+
+        #functions
     })
 }
 
 pub fn parse_dll_name(metadata: TokenStream) -> Result<String> {
-    let dll_name_token: LitStr = parse(metadata)?;
-    Ok(dll_name_token.value())
+    let dll_name: LitStr = parse(metadata)?;
+    Ok(dll_name.value())
 }
 
-pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<()> {
+pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_macro2::TokenStream> {
     let ItemForeignMod { abi, items, .. } = parse(input)?;
 
     let functions = items.into_iter().map(|i| {
@@ -90,9 +93,9 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<()> {
                 };
                 let FnDecl { generics, inputs, variadic, output, .. } = &*decl;
                 quote! {
-                    unsafe fn #generics () #output {
+                    #vis unsafe fn #ident #generics () #output {
                         let func = undocumented_winapi(wch_c!(#dll_name).as_ptr(), #link_ordinal);
-                        let func: unsafe extern #abi fn() #output = transmute(func);
+                        let func: unsafe #abi fn() #output = transmute(func);
 
                         func();
                     }
@@ -101,5 +104,5 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<()> {
             _ => panic!("Not a function"),
         }
     });
-    Ok(())
+    Ok(functions.collect())
 }
