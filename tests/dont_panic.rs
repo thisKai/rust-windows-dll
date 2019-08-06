@@ -1,5 +1,7 @@
 use windows_dll::windows_dll;
 
+use std::ffi::c_void;
+
 #[test]
 fn dont_panic() {
     #[windows_dll("uxtheme.dll")]
