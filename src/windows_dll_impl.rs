@@ -16,36 +16,7 @@ use quote::quote;
 pub fn parse_windows_dll(metadata: TokenStream, input: TokenStream) -> Result<proc_macro2::TokenStream> {
     let dll_name = parse_dll_name(metadata)?;
     let functions = parse_extern_block(&dll_name, input)?;
-
-    Ok(quote! {
-        use std::mem::transmute;
-
-        use wchar::wch_c;
-        use winapi::{
-            shared::{
-                ntdef::LPCWSTR,
-                minwindef::{
-                    LPCVOID,
-                    BOOL,
-                    WORD,
-                    DWORD,
-                    FARPROC,
-                },
-            },
-            um::{
-                libloaderapi::{LoadLibraryW, GetProcAddress},
-                winuser::MAKEINTRESOURCEA,
-            },
-        };
-        #[inline]
-        unsafe fn undocumented_winapi(dll_name: LPCWSTR, entry_ordinal: WORD) -> FARPROC {
-            let lib = LoadLibraryW(dll_name);
-
-            GetProcAddress(lib, MAKEINTRESOURCEA(entry_ordinal))
-        }
-
-        #functions
-    })
+    Ok(functions)
 }
 
 pub fn parse_dll_name(metadata: TokenStream) -> Result<String> {
@@ -94,8 +65,30 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 let FnDecl { generics, inputs, variadic, output, .. } = &*decl;
                 quote! {
                     #vis unsafe fn #ident #generics ( #(#inputs),* ) #output {
-                        let func = undocumented_winapi(wch_c!(#dll_name).as_ptr(), #link_ordinal);
-                        let func: unsafe #abi fn( #(#inputs),* ) #output = transmute(func);
+                        use std::mem::transmute;
+
+                        use wchar::wch_c;
+                        use winapi::{
+                            shared::{
+                                ntdef::LPCWSTR,
+                                minwindef::{
+                                    LPCVOID,
+                                    BOOL,
+                                    WORD,
+                                    DWORD,
+                                    FARPROC,
+                                },
+                            },
+                            um::{
+                                libloaderapi::{LoadLibraryW, GetProcAddress},
+                                winuser::MAKEINTRESOURCEA,
+                            },
+                        };
+                        let lib = LoadLibraryW(wch_c!(#dll_name).as_ptr());
+
+                        let func_ptr = GetProcAddress(lib, MAKEINTRESOURCEA(#link_ordinal));
+
+                        let func: unsafe #abi fn( #(#inputs),* ) #output = transmute(func_ptr);
 
                         func()
                     }
