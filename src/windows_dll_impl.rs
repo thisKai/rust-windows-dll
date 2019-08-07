@@ -65,7 +65,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 let FnDecl { generics, inputs, variadic, output, .. } = &*decl;
                 quote! {
                     #vis unsafe fn #ident #generics ( #(#inputs),* ) #output {
-                        use std::mem::transmute;
+                        use core::mem::transmute;
 
                         use wchar::wch_c;
                         use winapi::{
