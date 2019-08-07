@@ -68,22 +68,11 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                         use core::mem::transmute;
 
                         use wchar::wch_c;
-                        use winapi::{
-                            shared::{
-                                ntdef::LPCWSTR,
-                                minwindef::{
-                                    LPCVOID,
-                                    BOOL,
-                                    WORD,
-                                    DWORD,
-                                    FARPROC,
-                                },
-                            },
-                            um::{
-                                libloaderapi::{LoadLibraryW, GetProcAddress},
-                                winuser::MAKEINTRESOURCEA,
-                            },
+                        use winapi::um::{
+                            libloaderapi::{LoadLibraryW, GetProcAddress},
+                            winuser::MAKEINTRESOURCEA,
                         };
+
                         let lib = LoadLibraryW(wch_c!(#dll_name).as_ptr());
 
                         let func_ptr = GetProcAddress(lib, MAKEINTRESOURCEA(#link_ordinal));
