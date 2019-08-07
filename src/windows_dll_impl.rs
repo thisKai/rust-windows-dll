@@ -93,11 +93,11 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 };
                 let FnDecl { generics, inputs, variadic, output, .. } = &*decl;
                 quote! {
-                    #vis unsafe fn #ident #generics () #output {
+                    #vis unsafe fn #ident #generics ( #(#inputs),* ) #output {
                         let func = undocumented_winapi(wch_c!(#dll_name).as_ptr(), #link_ordinal);
-                        let func: unsafe #abi fn() #output = transmute(func);
+                        let func: unsafe #abi fn( #(#inputs),* ) #output = transmute(func);
 
-                        func();
+                        func()
                     }
                 }
             },
