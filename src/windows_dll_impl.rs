@@ -1,3 +1,4 @@
+use std::iter::once;
 use proc_macro::TokenStream;
 use syn::{
     Result,
@@ -65,6 +66,8 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 };
                 let FnDecl { generics, inputs, variadic, output, .. } = &*decl;
 
+                let wide_dll_name = dll_name.encode_utf16().chain(once(0));
+
                 let argument_names = inputs.iter().map(|i| {
                     match i {
                         FnArg::Captured(arg) => &arg.pat,
@@ -77,13 +80,12 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                     #vis unsafe fn #ident #generics ( #(#inputs),* ) #output {
                         use core::mem::transmute;
 
-                        use wchar::wch_c;
                         use winapi::um::{
                             libloaderapi::{LoadLibraryW, GetProcAddress},
                             winuser::MAKEINTRESOURCEA,
                         };
 
-                        let lib = LoadLibraryW(wch_c!(#dll_name).as_ptr());
+                        let lib = LoadLibraryW((&[#(#wide_dll_name),*]).as_ptr());
 
                         let func_ptr = GetProcAddress(lib, MAKEINTRESOURCEA(#link_ordinal));
 
