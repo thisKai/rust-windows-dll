@@ -6,7 +6,7 @@ use std::ffi::c_void;
 fn dont_panic() {
     #[windows_dll("uxtheme.dll")]
     extern "system" {
-        #[link_ordinal = 135]
+        #[link_ordinal = 137]
         fn flush_menu_themes() -> c_void;
     }
 }
