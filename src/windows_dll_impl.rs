@@ -8,6 +8,7 @@ use syn::{
     ForeignItem,
     ForeignItemFn,
     FnDecl,
+    FnArg,
     Meta,
     NestedMeta,
 };
@@ -63,6 +64,15 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                     _ => None,
                 };
                 let FnDecl { generics, inputs, variadic, output, .. } = &*decl;
+
+                let argument_names = inputs.iter().map(|i| {
+                    match i {
+                        FnArg::Captured(arg) => &arg.pat,
+                        FnArg::Inferred(pat) => pat,
+                        _ => panic!("Argument type not supported"),
+                    }
+                });
+
                 quote! {
                     #vis unsafe fn #ident #generics ( #(#inputs),* ) #output {
                         use core::mem::transmute;
@@ -79,7 +89,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
                         let func: unsafe #abi fn( #(#inputs),* ) #output = transmute(func_ptr);
 
-                        func()
+                        func( #(#argument_names),* )
                     }
                 }
             },
