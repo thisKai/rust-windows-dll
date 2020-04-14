@@ -1,22 +1,17 @@
+[workspace]
+members = [
+    ".",
+    "codegen",
+]
+
 [package]
 name = "windows_dll"
 version = "0.1.0"
 authors = ["Kai <thiskaiguy@gmail.com>"]
 edition = "2018"
 
-[lib]
-proc-macro = true
-
 [dependencies]
-proc-macro2 = "0.4.30"
-quote = "0.6.13"
-
-[dependencies.syn]
-version = "0.15.42"
-features = [
-    "full",
-    "extra-traits",
-]
+windows-dll-codegen = { path = "codegen" }
 
 [dependencies.winapi]
 version = "0.3.7"
