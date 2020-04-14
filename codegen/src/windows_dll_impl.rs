@@ -78,16 +78,12 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
                 quote! {
                     #vis unsafe fn #ident #generics ( #(#inputs),* ) #output {
-                        use core::mem::transmute;
-
-                        use winapi::um::{
-                            libloaderapi::{LoadLibraryW, GetProcAddress},
-                            winuser::MAKEINTRESOURCEA,
+                        use {
+                            core::mem::transmute,
+                            windows_dll::load_dll_proc,
                         };
 
-                        let lib = LoadLibraryW((&[#(#wide_dll_name),*]).as_ptr());
-
-                        let func_ptr = GetProcAddress(lib, MAKEINTRESOURCEA(#link_ordinal));
+                        let func_ptr = load_dll_proc((&[#(#wide_dll_name),*]).as_ptr(), #link_ordinal);
 
                         let func: unsafe #abi fn( #(#inputs),* ) #output = transmute(func_ptr);
 
