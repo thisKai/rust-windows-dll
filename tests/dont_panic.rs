@@ -1,13 +1,9 @@
 use windows_dll::windows_dll;
 
-use std::ffi::c_void;
-
-use winapi::{
-    shared::{
-        ntdef::VOID,
-        minwindef::BOOL,
-        windef::HWND,
-    },
+use winapi::shared::{
+    ntdef::VOID,
+    minwindef::BOOL,
+    windef::HWND,
 };
 
 #[test]
