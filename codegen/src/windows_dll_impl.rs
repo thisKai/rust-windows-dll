@@ -4,6 +4,7 @@ use syn::{
     Result,
     parse,
     Lit,
+    LitInt,
     LitStr,
     ItemForeignMod,
     ForeignItem,
@@ -32,38 +33,23 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
     let functions = items.into_iter().map(|i| {
         match i {
             ForeignItem::Fn(ForeignItemFn { attrs, vis, ident, decl, .. }) => {
-                let attr = attrs.iter().find_map(|attr| {
+                let link_attr = attrs.iter().find_map(|attr| {
                     let meta = attr.parse_meta().ok()?;
-                    if meta.name().to_string() == "link_ordinal" {
-                        Some(meta)
+                    if meta.name() == "link_ordinal" {
+                        match meta_value(meta)? {
+                            Lit::Int(int) => Some(Link::Ordinal(int)),
+                            _ => None,
+                        }
+                    } else if meta.name() == "link_name" {
+                        match meta_value(meta)? {
+                            Lit::Str(string) => Some(Link::Name(string.value())),
+                            _ => None,
+                        }
                     } else {
                         None
                     }
                 });
-                let link_ordinal = match attr {
-                    Some(Meta::List(mut list)) => {
-                        if list.nested.len() == 1 {
-                            list
-                                .nested
-                                .pop()
-                                .and_then(|pair| {
-                                    match pair.into_value() {
-                                        NestedMeta::Literal(Lit::Int(int)) => Some(int),
-                                        _ => None,
-                                    }
-                                })
-                        } else {
-                            None
-                        }
-                    },
-                    Some(Meta::NameValue(name_value)) => {
-                        match name_value.lit {
-                            Lit::Int(int) => Some(int),
-                            _ => None,
-                        }
-                    },
-                    _ => None,
-                };
+
                 let FnDecl { generics, inputs, variadic, output, .. } = &*decl;
 
                 let wide_dll_name = dll_name.encode_utf16().chain(once(0));
@@ -78,18 +64,29 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
                 let error = format!("Could not load function {} from {}", &ident, dll_name);
 
+                let wide_dll_name = quote! { (&[#(#wide_dll_name),*]).as_ptr() };
+
+                let func_ptr = match link_attr {
+                    Some(Link::Ordinal(ordinal)) => quote! {
+                        let func_ptr = load_dll_proc_ordinal(#wide_dll_name, #ordinal).expect(#error);
+                    },
+                    Some(Link::Name(name)) => {
+                        let name = name.as_bytes();
+                        quote! {
+                            let func_ptr = load_dll_proc_name(#wide_dll_name, (&[#(#name),*]).as_ptr() as _).expect(#error);
+                        }
+                    },
+                    _ => panic!(),
+                };
+
                 quote! {
                     #vis unsafe fn #ident ( #(#inputs),* ) #output {
                         use {
                             core::mem::transmute,
-                            windows_dll::load_dll_proc,
+                            windows_dll::{load_dll_proc_name, load_dll_proc_ordinal},
                         };
 
-                        let func_ptr = load_dll_proc(
-                            (&[#(#wide_dll_name),*]).as_ptr(),
-                            #link_ordinal,
-                        )
-                        .expect(#error);
+                        #func_ptr
 
                         let func: unsafe #abi fn( #(#inputs),* ) #output = transmute(func_ptr);
 
@@ -101,4 +98,33 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
         }
     });
     Ok(functions.collect())
+}
+
+enum Link {
+    Ordinal(LitInt),
+    Name(String),
+}
+
+fn meta_value(meta: Meta) -> Option<Lit> {
+    match meta {
+        Meta::List(mut list) => {
+            if list.nested.len() == 1 {
+                list
+                    .nested
+                    .pop()
+                    .and_then(|pair| {
+                        match pair.into_value() {
+                            NestedMeta::Literal(literal) => Some(literal),
+                            _ => None,
+                        }
+                    })
+            } else {
+                None
+            }
+        },
+        Meta::NameValue(name_value) => {
+            Some(name_value.lit)
+        },
+        _ => None,
+    }
 }
