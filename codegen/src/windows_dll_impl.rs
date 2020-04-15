@@ -76,6 +76,8 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                     }
                 });
 
+                let error = format!("Could not load function {} from {}", &ident, dll_name);
+
                 quote! {
                     #vis unsafe fn #ident ( #(#inputs),* ) #output {
                         use {
@@ -83,7 +85,11 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                             windows_dll::load_dll_proc,
                         };
 
-                        let func_ptr = load_dll_proc((&[#(#wide_dll_name),*]).as_ptr(), #link_ordinal);
+                        let func_ptr = load_dll_proc(
+                            (&[#(#wide_dll_name),*]).as_ptr(),
+                            #link_ordinal,
+                        )
+                        .expect(#error);
 
                         let func: unsafe #abi fn( #(#inputs),* ) #output = transmute(func_ptr);
 

@@ -5,13 +5,21 @@ use winapi::shared::{
 };
 
 #[inline]
-pub unsafe fn load_dll_proc(name: *const u16, link_ordinal: WORD) -> FARPROC {
+pub unsafe fn load_dll_proc(name: *const u16, link_ordinal: WORD) -> Option<FARPROC> {
     use winapi::um::{
         libloaderapi::{LoadLibraryW, GetProcAddress},
         winuser::MAKEINTRESOURCEA,
     };
 
     let library = LoadLibraryW(name);
+    if library.is_null() {
+        return None;
+    }
 
-    GetProcAddress(library, MAKEINTRESOURCEA(link_ordinal))
+    let function_pointer = GetProcAddress(library, MAKEINTRESOURCEA(link_ordinal));
+    if function_pointer.is_null() {
+        return None;
+    }
+
+    Some(function_pointer)
 }
