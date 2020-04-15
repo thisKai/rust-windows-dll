@@ -68,15 +68,21 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
                 let func_ptr = match link_attr {
                     Some(Link::Ordinal(ordinal)) => quote! {
-                        let func_ptr = load_dll_proc_ordinal(#wide_dll_name, #ordinal).expect(#error);
+                        load_dll_proc_ordinal(#wide_dll_name, #ordinal)
                     },
                     Some(Link::Name(name)) => {
                         let name = name.as_bytes();
                         quote! {
-                            let func_ptr = load_dll_proc_name(#wide_dll_name, (&[#(#name),*]).as_ptr() as _).expect(#error);
+                            load_dll_proc_name(#wide_dll_name, (&[#(#name),*]).as_ptr() as _)
                         }
                     },
-                    _ => panic!(),
+                    _ => {
+                        let name = ident.to_string();
+                        let name = name.as_bytes();
+                        quote! {
+                            load_dll_proc_name(#wide_dll_name, (&[#(#name),*]).as_ptr() as _)
+                        }
+                    },
                 };
 
                 quote! {
@@ -86,7 +92,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                             windows_dll::{load_dll_proc_name, load_dll_proc_ordinal},
                         };
 
-                        #func_ptr
+                        let func_ptr = #func_ptr.expect(#error);
 
                         let func: unsafe #abi fn( #(#inputs),* ) #output = transmute(func_ptr);
 
