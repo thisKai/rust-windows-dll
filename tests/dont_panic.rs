@@ -53,7 +53,7 @@ struct WINDOWCOMPOSITIONATTRIBDATA {
 fn guess_name() {
     #[windows_dll("user32.dll")]
     extern "system" {
-        #![allow(non_snake_case)]
+        #[allow(non_snake_case)]
         fn SetWindowCompositionAttribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
     }
 }
