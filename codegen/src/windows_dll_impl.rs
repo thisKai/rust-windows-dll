@@ -77,7 +77,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 });
 
                 quote! {
-                    #vis unsafe fn #ident #generics ( #(#inputs),* ) #output {
+                    #vis unsafe fn #ident ( #(#inputs),* ) #output {
                         use {
                             core::mem::transmute,
                             windows_dll::load_dll_proc,
