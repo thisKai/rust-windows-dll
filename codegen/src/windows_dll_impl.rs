@@ -49,6 +49,21 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                         None
                     }
                 });
+                let attrs = attrs.into_iter().filter_map(|attr| {
+                        match attr.parse_meta() {
+                            Ok(meta) => {
+                                let name = meta.name();
+                                if name == "link_ordinal" || name == "link_name" {
+                                    None
+                                } else {
+                                    Some(attr)
+                                }
+                            }
+                            Err(_) => {
+                                Some(attr)
+                            }
+                        }
+                    });
 
                 let FnDecl { generics, inputs, variadic, output, .. } = &*decl;
 
@@ -86,6 +101,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 };
 
                 quote! {
+                    #(#attrs)*
                     #vis unsafe fn #ident ( #(#inputs),* ) #output {
                         use {
                             core::mem::transmute,
