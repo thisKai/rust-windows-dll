@@ -65,7 +65,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                         }
                     });
 
-                let Signature { ident, generics, inputs, variadic, output, .. } = &sig;
+                let Signature { ident, inputs, output, .. } = &sig;
 
                 let wide_dll_name = dll_name.encode_utf16().chain(once(0));
                 use syn::{Pat, PatType, PatIdent};
