@@ -9,7 +9,7 @@ use syn::{
     ItemForeignMod,
     ForeignItem,
     ForeignItemFn,
-    FnDecl,
+    Signature,
     FnArg,
     Meta,
     NestedMeta,
@@ -32,15 +32,15 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
     let functions = items.into_iter().map(|i| {
         match i {
-            ForeignItem::Fn(ForeignItemFn { attrs, vis, ident, decl, .. }) => {
+            ForeignItem::Fn(ForeignItemFn { attrs, vis, sig, .. }) => {
                 let link_attr = attrs.iter().find_map(|attr| {
                     let meta = attr.parse_meta().ok()?;
-                    if meta.name() == "link_ordinal" {
+                    if meta.path().is_ident("link_ordinal") {
                         match meta_value(meta)? {
                             Lit::Int(int) => Some(Link::Ordinal(int)),
                             _ => None,
                         }
-                    } else if meta.name() == "link_name" {
+                    } else if meta.path().is_ident("link_name") {
                         match meta_value(meta)? {
                             Lit::Str(string) => Some(Link::Name(string.value())),
                             _ => None,
@@ -52,8 +52,8 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 let attrs = attrs.into_iter().filter_map(|attr| {
                         match attr.parse_meta() {
                             Ok(meta) => {
-                                let name = meta.name();
-                                if name == "link_ordinal" || name == "link_name" {
+                                let path = meta.path();
+                                if path.is_ident("link_ordinal") || path.is_ident("link_name") {
                                     None
                                 } else {
                                     Some(attr)
@@ -65,17 +65,20 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                         }
                     });
 
-                let FnDecl { generics, inputs, variadic, output, .. } = &*decl;
+                let Signature { ident, generics, inputs, variadic, output, .. } = &sig;
 
                 let wide_dll_name = dll_name.encode_utf16().chain(once(0));
-
+                use syn::{Pat, PatType, PatIdent};
                 let argument_names = inputs.iter().map(|i| {
                     match i {
-                        FnArg::Captured(arg) => &arg.pat,
-                        FnArg::Inferred(pat) => pat,
+                        FnArg::Typed(PatType { pat, .. }) => match &**pat {
+                            Pat::Ident(PatIdent { ident, .. }) => ident,
+                            _ => panic!("Argument type not supported"),
+                        }
                         _ => panic!("Argument type not supported"),
                     }
                 });
+                let inputs: Vec<_> = inputs.into_iter().collect();
 
                 let error = format!("Could not load function {} from {}", &ident, dll_name);
 
@@ -136,7 +139,7 @@ fn meta_value(meta: Meta) -> Option<Lit> {
                     .pop()
                     .and_then(|pair| {
                         match pair.into_value() {
-                            NestedMeta::Literal(literal) => Some(literal),
+                            NestedMeta::Lit(literal) => Some(literal),
                             _ => None,
                         }
                     })
