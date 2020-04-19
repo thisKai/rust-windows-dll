@@ -4,17 +4,17 @@ use winapi::{
     shared::{
         minwindef::{WORD, FARPROC},
     },
-    um::winnt::LPCSTR,
+    um::winnt::{LPCSTR, LPCWSTR},
 };
 
 #[inline]
-pub unsafe fn load_dll_proc_ordinal(name: *const u16, proc_ordinal: WORD) -> Option<FARPROC> {
+pub unsafe fn load_dll_proc_ordinal(name: LPCWSTR, proc_ordinal: WORD) -> Option<FARPROC> {
     use winapi::um::winuser::MAKEINTRESOURCEA;
 
     load_dll_proc_name(name, MAKEINTRESOURCEA(proc_ordinal))
 }
 #[inline]
-pub unsafe fn load_dll_proc_name(name: *const u16, proc_name: LPCSTR) -> Option<FARPROC> {
+pub unsafe fn load_dll_proc_name(name: LPCWSTR, proc_name: LPCSTR) -> Option<FARPROC> {
     use winapi::um::libloaderapi::{LoadLibraryW, GetProcAddress};
 
     let library = LoadLibraryW(name);

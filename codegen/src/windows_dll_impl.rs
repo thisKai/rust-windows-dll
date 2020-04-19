@@ -98,16 +98,16 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                         load_dll_proc_ordinal(#wide_dll_name, #ordinal)
                     },
                     Some(Link::Name(name)) => {
-                        let name = name.as_bytes();
+                        let name = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
                         quote! {
-                            load_dll_proc_name(#wide_dll_name, (&[#(#name),*]).as_ptr() as _)
+                            load_dll_proc_name(#wide_dll_name, (&[#(#name),*]).as_ptr())
                         }
                     },
                     _ => {
                         let name = ident.to_string();
-                        let name = name.as_bytes();
+                        let name = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
                         quote! {
-                            load_dll_proc_name(#wide_dll_name, (&[#(#name),*]).as_ptr() as _)
+                            load_dll_proc_name(#wide_dll_name, (&[#(#name),*]).as_ptr())
                         }
                     },
                 };
