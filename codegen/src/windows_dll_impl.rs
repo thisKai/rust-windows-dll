@@ -13,6 +13,7 @@ use syn::{
     FnArg,
     Meta,
     NestedMeta,
+    ReturnType,
 };
 use quote::quote;
 
@@ -49,11 +50,19 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                         None
                     }
                 });
+
+                let optional_attr = attrs.iter().find(|attr| {
+                    match attr.parse_meta() {
+                        Ok(meta) => meta.path().is_ident("optional"),
+                        Err(_) => false,
+                    }
+                }).is_some();
+
                 let attrs = attrs.into_iter().filter_map(|attr| {
                         match attr.parse_meta() {
                             Ok(meta) => {
                                 let path = meta.path();
-                                if path.is_ident("link_ordinal") || path.is_ident("link_name") {
+                                if path.is_ident("link_ordinal") || path.is_ident("link_name") || path.is_ident("optional") {
                                     None
                                 } else {
                                     Some(attr)
@@ -103,19 +112,45 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                     },
                 };
 
+                let outer_return_type = if optional_attr {
+                    match &output {
+                        ReturnType::Default => {
+                            quote! { -> Option<()> }
+                        }
+                        ReturnType::Type(_, ty) => {
+                            quote! { -> Option<#ty> }
+                        }
+                    }
+                } else {
+                    quote! { #output }
+                };
+
+                let handle_import_error = if optional_attr {
+                    quote! { ? }
+                } else {
+                    quote! { .expect(#error) }
+                };
+
+                let return_value = quote! { func( #(#argument_names),* ) };
+                let return_value = if optional_attr {
+                    quote! { Some(#return_value) }
+                } else {
+                    return_value
+                };
+
                 quote! {
                     #(#attrs)*
-                    #vis unsafe fn #ident ( #(#inputs),* ) #output {
+                    #vis unsafe fn #ident ( #(#inputs),* ) #outer_return_type {
                         use {
                             core::mem::transmute,
                             windows_dll::{load_dll_proc_name, load_dll_proc_ordinal},
                         };
 
-                        let func_ptr = #func_ptr.expect(#error);
+                        let func_ptr = #func_ptr#handle_import_error;
 
                         let func: unsafe #abi fn( #(#inputs),* ) #output = transmute(func_ptr);
 
-                        func( #(#argument_names),* )
+                        #return_value
                     }
                 }
             },
