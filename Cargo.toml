@@ -11,6 +11,7 @@ authors = ["Kai <thiskaiguy@gmail.com>"]
 edition = "2018"
 description = "Macro for dynamically loading windows dll functions"
 homepage = "https://github.com/thisKai/rust-windows-dll"
+license = "MIT"
 
 [dependencies]
 windows-dll-codegen = { version = "0.1.0", path = "codegen" }
