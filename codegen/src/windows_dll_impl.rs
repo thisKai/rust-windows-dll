@@ -1,8 +1,10 @@
 use std::iter::once;
 use proc_macro::TokenStream;
+use proc_macro2::Span;
 use syn::{
     Result,
     parse,
+    Ident,
     Lit,
     LitInt,
     LitStr,
@@ -16,6 +18,7 @@ use syn::{
     ReturnType,
 };
 use quote::quote;
+use proc_macro_crate::crate_name;
 
 pub fn parse_windows_dll(metadata: TokenStream, input: TokenStream) -> Result<proc_macro2::TokenStream> {
     let dll_name = parse_dll_name(metadata)?;
@@ -29,6 +32,9 @@ pub fn parse_dll_name(metadata: TokenStream) -> Result<String> {
 }
 
 pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_macro2::TokenStream> {
+    let crate_name = crate_name("windows-dll").unwrap_or_else(|_| "windows_dll".to_string());
+    let crate_name = Ident::new(&crate_name, Span::call_site());
+
     let ItemForeignMod { abi, items, .. } = parse(input)?;
 
     let functions = items.into_iter().map(|i| {
@@ -95,19 +101,19 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
                 let func_ptr = match link_attr {
                     Some(Link::Ordinal(ordinal)) => quote! {
-                        load_dll_proc_ordinal(#dll_name, windows_dll::Proc::Ordinal(#ordinal), #wide_dll_name, #ordinal)
+                        load_dll_proc_ordinal(#dll_name, #crate_name::Proc::Ordinal(#ordinal), #wide_dll_name, #ordinal)
                     },
                     Some(Link::Name(name)) => {
                         let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
                         quote! {
-                            load_dll_proc_name(#dll_name, windows_dll::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr())
+                            load_dll_proc_name(#dll_name, #crate_name::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr())
                         }
                     },
                     _ => {
                         let name = ident.to_string();
                         let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
                         quote! {
-                            load_dll_proc_name(#dll_name, windows_dll::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr())
+                            load_dll_proc_name(#dll_name, #crate_name::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr())
                         }
                     },
                 };
@@ -115,10 +121,10 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 let outer_return_type = if fallible_attr {
                     match &output {
                         ReturnType::Default => {
-                            quote! { -> Result<(), windows_dll::Error> }
+                            quote! { -> Result<(), #crate_name::Error> }
                         }
                         ReturnType::Type(_, ty) => {
-                            quote! { -> Result<#ty, windows_dll::Error> }
+                            quote! { -> Result<#ty, #crate_name::Error> }
                         }
                     }
                 } else {
