@@ -6,15 +6,16 @@ members = [
 
 [package]
 name = "windows-dll"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Kai <thiskaiguy@gmail.com>"]
 edition = "2018"
 description = "Macro for dynamically loading windows dll functions"
+readme = "README.md"
 homepage = "https://github.com/thisKai/rust-windows-dll"
 license = "MIT"
 
 [dependencies]
-windows-dll-codegen = { version = "0.1.0", path = "codegen" }
+windows-dll-codegen = { version = "0.1.1", path = "codegen" }
 thiserror = "1.0"
 
 [dependencies.winapi]
