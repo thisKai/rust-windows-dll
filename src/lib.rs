@@ -1,4 +1,4 @@
-pub use windows_dll_codegen::windows_dll;
+pub use windows_dll_codegen::dll;
 
 use winapi::{
     shared::{

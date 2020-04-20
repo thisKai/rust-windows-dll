@@ -1,4 +1,4 @@
-use windows_dll::windows_dll;
+use windows_dll::dll;
 
 use winapi::shared::{
     ntdef::VOID,
@@ -11,7 +11,7 @@ use winapi::shared::{
 
 #[test]
 fn link_ordinal() {
-    #[windows_dll("uxtheme.dll")]
+    #[dll("uxtheme.dll")]
     extern "system" {
         #[link_ordinal = 137]
         fn flush_menu_themes() -> VOID;
@@ -21,7 +21,7 @@ fn link_ordinal() {
 
 #[test]
 fn link_ordinal_with_arguments() {
-    #[windows_dll("uxtheme.dll")]
+    #[dll("uxtheme.dll")]
     extern "system" {
         #[link_ordinal = 133]
         fn allow_dark_mode_for_window(hwnd: HWND, allow: BOOL) -> BOOL;
@@ -30,7 +30,7 @@ fn link_ordinal_with_arguments() {
 
 #[test]
 fn link_name() {
-    #[windows_dll("user32.dll")]
+    #[dll("user32.dll")]
     extern "system" {
         #[link_name = "SetWindowCompositionAttribute"]
         fn set_window_composition_attribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
@@ -51,7 +51,7 @@ struct WINDOWCOMPOSITIONATTRIBDATA {
 
 #[test]
 fn guess_name() {
-    #[windows_dll("user32.dll")]
+    #[dll("user32.dll")]
     extern "system" {
         #[allow(non_snake_case)]
         fn SetWindowCompositionAttribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
@@ -60,7 +60,7 @@ fn guess_name() {
 
 #[test]
 fn return_result() {
-    #[windows_dll("user32.dll")]
+    #[dll("user32.dll")]
     extern "system" {
         #[allow(non_snake_case)]
         #[fallible]
