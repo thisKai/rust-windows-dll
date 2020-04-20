@@ -9,9 +9,11 @@ name = "windows-dll"
 version = "0.1.0"
 authors = ["Kai <thiskaiguy@gmail.com>"]
 edition = "2018"
+description = "Macro for dynamically loading windows dll functions"
+homepage = "https://github.com/thisKai/rust-windows-dll"
 
 [dependencies]
-windows-dll-codegen = { path = "codegen" }
+windows-dll-codegen = { version = "0.1.0", path = "codegen" }
 thiserror = "1.0"
 
 [dependencies.winapi]
