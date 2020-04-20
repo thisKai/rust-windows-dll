@@ -5,7 +5,7 @@ members = [
 ]
 
 [package]
-name = "windows_dll"
+name = "windows-dll"
 version = "0.1.0"
 authors = ["Kai <thiskaiguy@gmail.com>"]
 edition = "2018"
