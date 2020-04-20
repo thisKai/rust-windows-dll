@@ -12,6 +12,7 @@ edition = "2018"
 
 [dependencies]
 windows-dll-codegen = { path = "codegen" }
+thiserror = "1.0"
 
 [dependencies.winapi]
 version = "0.3.7"

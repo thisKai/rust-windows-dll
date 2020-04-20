@@ -51,9 +51,9 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                     }
                 });
 
-                let optional_attr = attrs.iter().find(|attr| {
+                let fallible_attr = attrs.iter().find(|attr| {
                     match attr.parse_meta() {
-                        Ok(meta) => meta.path().is_ident("optional"),
+                        Ok(meta) => meta.path().is_ident("fallible"),
                         Err(_) => false,
                     }
                 }).is_some();
@@ -62,7 +62,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                         match attr.parse_meta() {
                             Ok(meta) => {
                                 let path = meta.path();
-                                if path.is_ident("link_ordinal") || path.is_ident("link_name") || path.is_ident("optional") {
+                                if path.is_ident("link_ordinal") || path.is_ident("link_name") || path.is_ident("fallible") {
                                     None
                                 } else {
                                     Some(attr)
@@ -95,45 +95,45 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
                 let func_ptr = match link_attr {
                     Some(Link::Ordinal(ordinal)) => quote! {
-                        load_dll_proc_ordinal(#wide_dll_name, #ordinal)
+                        load_dll_proc_ordinal(#dll_name, windows_dll::Proc::Ordinal(#ordinal), #wide_dll_name, #ordinal)
                     },
                     Some(Link::Name(name)) => {
-                        let name = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
+                        let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
                         quote! {
-                            load_dll_proc_name(#wide_dll_name, (&[#(#name),*]).as_ptr())
+                            load_dll_proc_name(#dll_name, windows_dll::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr())
                         }
                     },
                     _ => {
                         let name = ident.to_string();
-                        let name = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
+                        let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
                         quote! {
-                            load_dll_proc_name(#wide_dll_name, (&[#(#name),*]).as_ptr())
+                            load_dll_proc_name(#dll_name, windows_dll::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr())
                         }
                     },
                 };
 
-                let outer_return_type = if optional_attr {
+                let outer_return_type = if fallible_attr {
                     match &output {
                         ReturnType::Default => {
-                            quote! { -> Option<()> }
+                            quote! { -> Result<(), windows_dll::Error> }
                         }
                         ReturnType::Type(_, ty) => {
-                            quote! { -> Option<#ty> }
+                            quote! { -> Result<#ty, windows_dll::Error> }
                         }
                     }
                 } else {
                     quote! { #output }
                 };
 
-                let handle_import_error = if optional_attr {
+                let handle_import_error = if fallible_attr {
                     quote! { ? }
                 } else {
                     quote! { .expect(#error) }
                 };
 
                 let return_value = quote! { func( #(#argument_names),* ) };
-                let return_value = if optional_attr {
-                    quote! { Some(#return_value) }
+                let return_value = if fallible_attr {
+                    quote! { Ok(#return_value) }
                 } else {
                     return_value
                 };
