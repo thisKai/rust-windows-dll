@@ -149,7 +149,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                     #vis enum #ident {}
                     impl #ident {
                         #[inline]
-                        unsafe fn ptr() -> Result<&'static unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error> {
+                        unsafe fn ptr() -> Result<&'static unsafe #abi fn( #(#inputs),* ) #output, &'static #crate_name::Error> {
                             use {
                                 core::mem::transmute,
                                 windows_dll::{
@@ -163,13 +163,20 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                                 let func_ptr = #func_ptr?;
 
                                 Ok(transmute(func_ptr))
-                            }).as_ref().map_err(|err| err.clone())
+                            }).as_ref()
+                        }
+                        #[inline]
+                        unsafe fn ptr_clone_err() -> Result<&'static unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error> {
+                            Self::ptr().map_err(|err| err.clone())
+                        }
+                        pub fn exists() -> bool {
+                            unsafe { Self::ptr().is_ok() }
                         }
                     }
 
                     #(#attrs)*
                     #vis unsafe fn #ident ( #(#inputs),* ) #outer_return_type {
-                        let func = #ident::ptr()#handle_import_error;
+                        let func = #ident::ptr_clone_err()#handle_import_error;
 
                         #return_value
                     }
