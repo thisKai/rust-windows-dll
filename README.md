@@ -99,3 +99,16 @@ extern "system" {
     fn allow_dark_mode_for_window(hwnd: HWND, allow: BOOL) -> BOOL;
 }
 ```
+
+### Check whether a function exists
+```rust
+#[dll("ntdll.dll")]
+extern "system" {
+    #[link_name = "RtlGetVersion"]
+    fn rtl_get_version(lp_version_information: *mut OSVERSIONINFOW) -> NTSTATUS;
+}
+
+fn rtl_get_version_exists() -> bool {
+    rtl_get_version::exists()
+}
+```
