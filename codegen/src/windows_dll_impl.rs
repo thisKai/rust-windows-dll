@@ -131,10 +131,10 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                     quote! { #output }
                 };
 
-                let handle_import_error = if fallible_attr {
-                    quote! { ? }
+                let get_func_ptr = if fallible_attr {
+                    quote! { ::ptr_clone_err()? }
                 } else {
-                    quote! { .expect(#error) }
+                    quote! { ::ptr().expect(#error) }
                 };
 
                 let return_value = quote! { func( #(#argument_names),* ) };
@@ -176,7 +176,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
                     #(#attrs)*
                     #vis unsafe fn #ident ( #(#inputs),* ) #outer_return_type {
-                        let func = #ident::ptr_clone_err()#handle_import_error;
+                        let func = #ident#get_func_ptr;
 
                         #return_value
                     }
