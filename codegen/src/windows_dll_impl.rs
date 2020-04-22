@@ -145,16 +145,31 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 };
 
                 quote! {
+                    #[allow(non_camel_case_types)]
+                    #vis enum #ident {}
+                    impl #ident {
+                        #[inline]
+                        unsafe fn ptr() -> Result<&'static unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error> {
+                            use {
+                                core::mem::transmute,
+                                windows_dll::{
+                                    load_dll_proc_name,
+                                    load_dll_proc_ordinal,
+                                    once_cell::sync::OnceCell,
+                                },
+                            };
+                            static FUNC_PTR: OnceCell<Result<unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error>> = OnceCell::new();
+                            FUNC_PTR.get_or_init(|| {
+                                let func_ptr = #func_ptr?;
+
+                                Ok(transmute(func_ptr))
+                            }).as_ref().map_err(|err| err.clone())
+                        }
+                    }
+
                     #(#attrs)*
                     #vis unsafe fn #ident ( #(#inputs),* ) #outer_return_type {
-                        use {
-                            core::mem::transmute,
-                            windows_dll::{load_dll_proc_name, load_dll_proc_ordinal},
-                        };
-
-                        let func_ptr = #func_ptr#handle_import_error;
-
-                        let func: unsafe #abi fn( #(#inputs),* ) #output = transmute(func_ptr);
+                        let func = #ident::ptr()#handle_import_error;
 
                         #return_value
                     }

@@ -1,4 +1,7 @@
-pub use windows_dll_codegen::dll;
+pub use {
+    windows_dll_codegen::dll,
+    once_cell,
+};
 
 use winapi::{
     shared::{
@@ -33,7 +36,7 @@ pub unsafe fn load_dll_proc_name(name: &'static str, proc: Proc, name_lpcwstr: L
     Ok(function_pointer)
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 pub enum Error {
     #[error("Failed to load {0}")]
     Library(&'static str),
@@ -44,7 +47,7 @@ pub enum Error {
     },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Proc {
     Name(&'static str),
     Ordinal(u16),
