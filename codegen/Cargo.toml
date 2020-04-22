@@ -6,7 +6,10 @@ edition = "2018"
 description = "Macro for dynamically loading windows dll functions"
 readme = "../README.md"
 homepage = "https://github.com/thisKai/rust-windows-dll"
+repository = "https://github.com/thisKai/rust-windows-dll"
 license = "MIT"
+keywords = ["windows", "win32", "dll", "macro", "ffi"]
+categories = ["development-tools::ffi", "external-ffi-bindings", "api-bindings", "os::windows-apis"]
 
 [lib]
 proc-macro = true
