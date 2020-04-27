@@ -4,41 +4,30 @@ pub use {
     winapi::um::winnt::{LPCSTR, LPCWSTR},
 };
 
-use winapi::shared::{
-    minwindef::{WORD, FARPROC},
-    basetsd::ULONG_PTR,
+use {
+    core::marker::PhantomData,
+    winapi::shared::{
+        minwindef::{WORD, FARPROC},
+        basetsd::ULONG_PTR,
+    },
 };
 
 
 #[inline]
-pub unsafe fn load_dll_proc<D: Dll>() -> Result<FARPROC, Error> {
+pub unsafe fn load_dll_proc<D: DllProc>() -> Result<FARPROC, Error<D>> {
     use winapi::um::libloaderapi::{LoadLibraryW, GetProcAddress};
 
     let library = LoadLibraryW(D::LIB_LPCWSTR);
     if library.is_null() {
-        return Err(Error::Library(D::LIB));
+        return Err(Error::lib());
     }
 
     let function_pointer = GetProcAddress(library, D::PROC_LPCSTR);
     if function_pointer.is_null() {
-        return Err(Error::Proc {
-            lib: D::LIB,
-            proc: D::PROC,
-        });
+        return Err(Error::proc());
     }
 
     Ok(function_pointer)
-}
-
-#[derive(Debug, Clone, thiserror::Error)]
-pub enum Error {
-    #[error("Failed to load {0}")]
-    Library(&'static str),
-    #[error("Failed to load {proc} from {lib}")]
-    Proc {
-        lib: &'static str,
-        proc: Proc,
-    },
 }
 
 #[derive(Debug, Clone)]
@@ -55,7 +44,7 @@ impl core::fmt::Display for Proc {
     }
 }
 
-pub trait Dll: Sized {
+pub trait DllProc: Sized {
     const LIB: &'static str;
     const LIB_LPCWSTR: LPCWSTR;
     const PROC: Proc;
@@ -65,4 +54,39 @@ pub trait Dll: Sized {
 #[inline]
 pub const fn make_int_resource_a(i: WORD) -> LPCSTR {
     i as ULONG_PTR as _
+}
+
+#[derive(Debug, Copy, Clone)]
+#[repr(u8)]
+pub enum ErrorKind {
+    Lib,
+    Proc,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Error<D: DllProc> {
+    pub kind: ErrorKind,
+    _dll: PhantomData<D>,
+}
+impl<D: DllProc> Error<D> {
+    pub fn lib() -> Self {
+        Self {
+            kind: ErrorKind::Lib,
+            _dll: PhantomData,
+        }
+    }
+    pub fn proc() -> Self {
+        Self {
+            kind: ErrorKind::Proc,
+            _dll: PhantomData,
+        }
+    }
+}
+impl<D: DllProc> core::fmt::Display for Error<D> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match &self.kind {
+            ErrorKind::Lib => write!(f, "Could not load {}", D::LIB),
+            ErrorKind::Proc => write!(f, "Could not load {}#{}", D::LIB, D::PROC),
+        }
+    }
 }

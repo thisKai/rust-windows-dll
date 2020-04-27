@@ -95,8 +95,6 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 });
                 let inputs: Vec<_> = inputs.into_iter().collect();
 
-                let error = format!("Could not load function {} from {}", &ident, dll_name);
-
                 let wide_dll_name = quote! { (&[#(#wide_dll_name),*]).as_ptr() };
 
                 let link = link_attr.unwrap_or_else(|| Link::Name(ident.to_string()));
@@ -105,10 +103,10 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 let outer_return_type = if fallible_attr {
                     match &output {
                         ReturnType::Default => {
-                            quote! { -> Result<(), #crate_name::Error> }
+                            quote! { -> Result<(), #crate_name::Error<#ident>> }
                         }
                         ReturnType::Type(_, ty) => {
-                            quote! { -> Result<#ty, #crate_name::Error> }
+                            quote! { -> Result<#ty, #crate_name::Error<#ident>> }
                         }
                     }
                 } else {
@@ -116,9 +114,19 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 };
 
                 let get_fn_ptr = if fallible_attr {
-                    quote! { ::ptr_clone_err()? }
+                    quote! {
+                        match #ident::ptr() {
+                            Ok(fn_ptr) => fn_ptr,
+                            Err(err) => return Err(*err),
+                        }
+                    }
                 } else {
-                    quote! { ::ptr().expect(#error) }
+                    quote! {
+                        match #ident::ptr() {
+                            Ok(fn_ptr) => fn_ptr,
+                            Err(err) => panic!("{}", err),
+                        }
+                    }
                 };
 
                 let return_value = quote! { func( #(#argument_names),* ) };
@@ -132,31 +140,28 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
                 quote! {
                     #[allow(non_camel_case_types)]
+                    #[derive(Debug, Copy, Clone)]
                     #vis enum #ident {}
                     impl #ident {
                         #[inline]
-                        unsafe fn ptr() -> Result<&'static unsafe #abi fn( #(#inputs),* ) #output, &'static #crate_name::Error> {
+                        unsafe fn ptr() -> &'static Result<unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error<#ident>> {
                             use {
                                 core::mem::transmute,
                                 windows_dll::once_cell::sync::OnceCell,
                             };
-                            static FUNC_PTR: OnceCell<Result<unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error>> = OnceCell::new();
+                            static FUNC_PTR: OnceCell<Result<unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error<#ident>>> = OnceCell::new();
                             FUNC_PTR.get_or_init(|| {
                                 let func_ptr = #fn_ptr?;
 
                                 Ok(transmute(func_ptr))
-                            }).as_ref()
-                        }
-                        #[inline]
-                        unsafe fn ptr_clone_err() -> Result<&'static unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error> {
-                            Self::ptr().map_err(|err| err.clone())
+                            })
                         }
                         pub fn exists() -> bool {
                             unsafe { Self::ptr().is_ok() }
                         }
                     }
 
-                    impl #crate_name::Dll for #ident {
+                    impl #crate_name::DllProc for #ident {
                         const LIB: &'static str = #dll_name;
                         const LIB_LPCWSTR: #crate_name::LPCWSTR = #wide_dll_name;
                         const PROC: #crate_name::Proc = #proc;
@@ -165,7 +170,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
                     #(#attrs)*
                     #vis unsafe fn #ident ( #(#inputs),* ) #outer_return_type {
-                        let func = #ident#get_fn_ptr;
+                        let func = #get_fn_ptr;
 
                         #return_value
                     }
