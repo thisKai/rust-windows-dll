@@ -99,24 +99,8 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
                 let wide_dll_name = quote! { (&[#(#wide_dll_name),*]).as_ptr() };
 
-                let func_ptr = match link_attr {
-                    Some(Link::Ordinal(ordinal)) => quote! {
-                        load_dll_proc_ordinal(#dll_name, #crate_name::Proc::Ordinal(#ordinal), #wide_dll_name, #ordinal)
-                    },
-                    Some(Link::Name(name)) => {
-                        let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
-                        quote! {
-                            load_dll_proc_name(#dll_name, #crate_name::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr())
-                        }
-                    },
-                    _ => {
-                        let name = ident.to_string();
-                        let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
-                        quote! {
-                            load_dll_proc_name(#dll_name, #crate_name::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr())
-                        }
-                    },
-                };
+                let link = link_attr.unwrap_or_else(|| Link::Name(ident.to_string()));
+                let fn_ptr = quote! { #crate_name::load_dll_proc::<#ident>() };
 
                 let outer_return_type = if fallible_attr {
                     match &output {
@@ -131,7 +115,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                     quote! { #output }
                 };
 
-                let get_func_ptr = if fallible_attr {
+                let get_fn_ptr = if fallible_attr {
                     quote! { ::ptr_clone_err()? }
                 } else {
                     quote! { ::ptr().expect(#error) }
@@ -143,6 +127,8 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 } else {
                     return_value
                 };
+                let proc = link.proc(&crate_name);
+                let proc_lpcstr = link.proc_lpcstr(&crate_name);
 
                 quote! {
                     #[allow(non_camel_case_types)]
@@ -152,15 +138,11 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                         unsafe fn ptr() -> Result<&'static unsafe #abi fn( #(#inputs),* ) #output, &'static #crate_name::Error> {
                             use {
                                 core::mem::transmute,
-                                windows_dll::{
-                                    load_dll_proc_name,
-                                    load_dll_proc_ordinal,
-                                    once_cell::sync::OnceCell,
-                                },
+                                windows_dll::once_cell::sync::OnceCell,
                             };
                             static FUNC_PTR: OnceCell<Result<unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error>> = OnceCell::new();
                             FUNC_PTR.get_or_init(|| {
-                                let func_ptr = #func_ptr?;
+                                let func_ptr = #fn_ptr?;
 
                                 Ok(transmute(func_ptr))
                             }).as_ref()
@@ -174,9 +156,16 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                         }
                     }
 
+                    impl #crate_name::Dll for #ident {
+                        const LIB: &'static str = #dll_name;
+                        const LIB_LPCWSTR: #crate_name::LPCWSTR = #wide_dll_name;
+                        const PROC: #crate_name::Proc = #proc;
+                        const PROC_LPCSTR: #crate_name::LPCSTR = #proc_lpcstr;
+                    }
+
                     #(#attrs)*
                     #vis unsafe fn #ident ( #(#inputs),* ) #outer_return_type {
-                        let func = #ident#get_func_ptr;
+                        let func = #ident#get_fn_ptr;
 
                         #return_value
                     }
@@ -191,6 +180,23 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 enum Link {
     Ordinal(LitInt),
     Name(String),
+}
+impl Link {
+    fn proc(&self, crate_name: &Ident) -> proc_macro2::TokenStream {
+        match self {
+            Self::Ordinal(ordinal) => quote! { #crate_name::Proc::Ordinal(#ordinal) },
+            Self::Name(name) => quote! { #crate_name::Proc::Name(#name) },
+        }
+    }
+    fn proc_lpcstr(&self, crate_name: &Ident) -> proc_macro2::TokenStream {
+        match self {
+            Self::Ordinal(ordinal) => quote! { #crate_name::make_int_resource_a(#ordinal) },
+            Self::Name(name) => {
+                let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
+                quote! { (&[#(#name_lpcstr),*]).as_ptr() }
+            },
+        }
+    }
 }
 
 fn meta_value(meta: Meta) -> Option<Lit> {
