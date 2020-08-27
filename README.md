@@ -112,3 +112,18 @@ fn rtl_get_version_exists() -> bool {
     rtl_get_version::exists()
 }
 ```
+
+### Pass flags to the underlying LoadLibraryExW call
+
+```rust
+use windows_dll::*;
+#[dll("ntdll.dll", LOAD_LIBRARY_SEARCH_SYSTEM32)]
+extern "system" {
+    #[link_name = "RtlGetVersion"]
+    fn rtl_get_version(lp_version_information: *mut OSVERSIONINFOW) -> NTSTATUS;
+}
+
+fn rtl_get_version_exists() -> bool {
+    rtl_get_version::exists()
+}
+```
