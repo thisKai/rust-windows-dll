@@ -1,13 +1,12 @@
-use windows_dll::dll;
+use windows_dll::*;
 
 use winapi::shared::{
-    ntdef::VOID,
-    minwindef::BOOL,
+    ntdef::{VOID, LPCWSTR},
+    minwindef::{BOOL, ULONG},
     windef::HWND,
     ntdef::PVOID,
     basetsd::SIZE_T,
 };
-
 
 #[test]
 fn link_ordinal() {
@@ -93,4 +92,26 @@ fn function_exists_module() {
     use user32::SetWindowCompositionAttribute;
 
     dbg!(SetWindowCompositionAttribute::exists());
+}
+
+mod test_loadlibraryex_args {
+    use super::*;
+
+    #[dll("bcrypt.dll", LOAD_LIBRARY_SEARCH_SYSTEM32)]
+    extern "system" {
+        #[link_name = "BCryptAddContextFunction"]
+        fn bcrypt_add_context_function(dw_table: ULONG, psz_context: LPCWSTR, dw_interface: ULONG, psz_function: LPCWSTR, dw_position: ULONG) -> BOOL;
+    }
+
+    #[dll("firewallapi.dll", LOAD_LIBRARY_SEARCH_APPLICATION_DIR)]
+    extern "system" {
+        #[link_name = "FWAddFirewallRule"]
+        pub fn fw_add_firewall_rule() -> ();
+    }
+
+    #[test]
+    fn assert_args_passed() {
+        assert!(bcrypt_add_context_function::exists(), "Didn't find bcrypt.dll in system dir...");
+        assert!(!fw_add_firewall_rule::exists(), "Found firewallapi.dll in application dir...");
+    }
 }
