@@ -46,7 +46,7 @@ impl core::fmt::Display for Proc {
     }
 }
 
-pub trait DllProc: Sized {
+pub trait DllProc: Sized + core::fmt::Debug {
     const LIB: &'static str;
     const LIB_LPCWSTR: LPCWSTR;
     const PROC: Proc;
@@ -92,3 +92,4 @@ impl<D: DllProc> core::fmt::Display for Error<D> {
         }
     }
 }
+impl<D: DllProc> std::error::Error for Error<D> {}
