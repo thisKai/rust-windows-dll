@@ -141,19 +141,19 @@ pub fn parse_extern_block(dll_name: &str, load_library_ex_flags: Option<&Expr>, 
 
                 let func_ptr = match link_attr {
                     Some(Link::Ordinal(ordinal)) => quote! {
-                        load_dll_proc_ordinal_ex(#dll_name, #crate_name::Proc::Ordinal(#ordinal), #wide_dll_name, #ordinal, #flags)
+                        load_dll_proc_ordinal(#dll_name, #crate_name::Proc::Ordinal(#ordinal), #wide_dll_name, #ordinal, #flags)
                     },
                     Some(Link::Name(name)) => {
                         let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
                         quote! {
-                            load_dll_proc_name_ex(#dll_name, #crate_name::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr(), #flags)
+                            load_dll_proc_name(#dll_name, #crate_name::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr(), #flags)
                         }
                     },
                     _ => {
                         let name = ident.to_string();
                         let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
                         quote! {
-                            load_dll_proc_name_ex(#dll_name, #crate_name::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr(), #flags)
+                            load_dll_proc_name(#dll_name, #crate_name::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr(), #flags)
                         }
                     },
                 };
@@ -192,8 +192,10 @@ pub fn parse_extern_block(dll_name: &str, load_library_ex_flags: Option<&Expr>, 
                         unsafe fn ptr() -> #crate_name::Result<&'static unsafe #abi fn( #(#inputs),* ) #output, &'static #crate_name::Error> {
                             use {
                                 #crate_name::{
-                                    load_dll_proc_name,
-                                    load_dll_proc_ordinal,
+                                    load::{
+                                        load_dll_proc_name,
+                                        load_dll_proc_ordinal,
+                                    },
                                     once_cell::sync::OnceCell,
                                     core::mem::transmute,
                                     Result,

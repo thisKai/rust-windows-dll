@@ -29,42 +29,36 @@ use winapi::{
     um::winuser::MAKEINTRESOURCEA,
 };
 
-#[inline]
-pub unsafe fn load_dll_proc_ordinal(name: &'static str, proc: Proc, name_lpcwstr: LPCWSTR, proc_ordinal: WORD) -> Result<FARPROC, Error> {
-    load_dll_proc_name_ex(name, proc, name_lpcwstr, MAKEINTRESOURCEA(proc_ordinal), 0)
-}
-
-#[inline]
-pub unsafe fn load_dll_proc_name(name: &'static str, proc: Proc, name_lpcwstr: LPCWSTR, proc_name: LPCSTR) -> Result<FARPROC, Error> {
-    load_dll_proc_name_ex(name, proc, name_lpcwstr, proc_name, 0)
-}
-
-
 #[doc(hidden)]
-#[inline]
-pub unsafe fn load_dll_proc_ordinal_ex(name: &'static str, proc: Proc, name_lpcwstr: LPCWSTR, proc_ordinal: WORD, flags: DWORD) -> Result<FARPROC, Error> {
-    load_dll_proc_name_ex(name, proc, name_lpcwstr, MAKEINTRESOURCEA(proc_ordinal), flags)
-}
+pub mod load {
+    use super::*;
 
-#[doc(hidden)]
-#[inline]
-pub unsafe fn load_dll_proc_name_ex(name: &'static str, proc: Proc, name_lpcwstr: LPCWSTR, proc_name: LPCSTR, flags: DWORD) -> Result<FARPROC, Error> {
-    use winapi::um::libloaderapi::{LoadLibraryExW, GetProcAddress};
-
-    let library = LoadLibraryExW(name_lpcwstr, std::ptr::null_mut(), flags);
-    if library.is_null() {
-        return Err(Error::Library(name));
+    #[doc(hidden)]
+    #[inline]
+    pub unsafe fn load_dll_proc_ordinal(name: &'static str, proc: Proc, name_lpcwstr: LPCWSTR, proc_ordinal: WORD, flags: DWORD) -> Result<FARPROC, Error> {
+        load_dll_proc_name(name, proc, name_lpcwstr, MAKEINTRESOURCEA(proc_ordinal), flags)
     }
 
-    let function_pointer = GetProcAddress(library, proc_name);
-    if function_pointer.is_null() {
-        return Err(Error::Proc {
-            lib: name,
-            proc,
-        });
-    }
+    #[doc(hidden)]
+    #[inline]
+    pub unsafe fn load_dll_proc_name(name: &'static str, proc: Proc, name_lpcwstr: LPCWSTR, proc_name: LPCSTR, flags: DWORD) -> Result<FARPROC, Error> {
+        use winapi::um::libloaderapi::{LoadLibraryExW, GetProcAddress};
 
-    Ok(function_pointer)
+        let library = LoadLibraryExW(name_lpcwstr, std::ptr::null_mut(), flags);
+        if library.is_null() {
+            return Err(Error::Library(name));
+        }
+
+        let function_pointer = GetProcAddress(library, proc_name);
+        if function_pointer.is_null() {
+            return Err(Error::Proc {
+                lib: name,
+                proc,
+            });
+        }
+
+        Ok(function_pointer)
+    }
 }
 
 #[derive(Debug, Clone, thiserror::Error)]
