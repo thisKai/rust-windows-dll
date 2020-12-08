@@ -147,8 +147,6 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                         unsafe fn ptr() -> &'static #crate_name::Result<unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error<#ident>> {
                             use {
                                 #crate_name::{
-                                    load_dll_proc_name,
-                                    load_dll_proc_ordinal,
                                     once_cell::sync::OnceCell,
                                     core::mem::transmute,
                                     Result,
@@ -159,11 +157,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                                 let func_ptr = #fn_ptr?;
 
                                 Ok(transmute(func_ptr))
-                            }).as_ref()
-                        }
-                        #[inline]
-                        unsafe fn ptr_clone_err() -> #crate_name::Result<&'static unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error> {
-                            Self::ptr().map_err(|err| err.clone())
+                            })
                         }
                         pub fn exists() -> bool {
                             unsafe { Self::ptr().is_ok() }
