@@ -1,6 +1,8 @@
 pub use {
     windows_dll_codegen::dll,
     once_cell,
+    core,
+    core::result::Result,
 };
 
 use winapi::{

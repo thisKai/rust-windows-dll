@@ -121,10 +121,10 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                 let outer_return_type = if fallible_attr {
                     match &output {
                         ReturnType::Default => {
-                            quote! { -> Result<(), #crate_name::Error> }
+                            quote! { -> #crate_name::Result<(), #crate_name::Error> }
                         }
                         ReturnType::Type(_, ty) => {
-                            quote! { -> Result<#ty, #crate_name::Error> }
+                            quote! { -> #crate_name::Result<#ty, #crate_name::Error> }
                         }
                     }
                 } else {
@@ -149,13 +149,14 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                     #vis enum #ident {}
                     impl #ident {
                         #[inline]
-                        unsafe fn ptr() -> Result<&'static unsafe #abi fn( #(#inputs),* ) #output, &'static #crate_name::Error> {
+                        unsafe fn ptr() -> #crate_name::Result<&'static unsafe #abi fn( #(#inputs),* ) #output, &'static #crate_name::Error> {
                             use {
-                                core::mem::transmute,
-                                windows_dll::{
+                                #crate_name::{
                                     load_dll_proc_name,
                                     load_dll_proc_ordinal,
                                     once_cell::sync::OnceCell,
+                                    core::mem::transmute,
+                                    Result,
                                 },
                             };
                             static FUNC_PTR: OnceCell<Result<unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error>> = OnceCell::new();
@@ -166,7 +167,7 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
                             }).as_ref()
                         }
                         #[inline]
-                        unsafe fn ptr_clone_err() -> Result<&'static unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error> {
+                        unsafe fn ptr_clone_err() -> #crate_name::Result<&'static unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error> {
                             Self::ptr().map_err(|err| err.clone())
                         }
                         pub fn exists() -> bool {
