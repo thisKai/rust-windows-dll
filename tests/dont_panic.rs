@@ -1,4 +1,4 @@
-use windows_dll::*;
+use windows_dll::{dll, flags::*};
 
 use winapi::shared::{
     ntdef::{VOID, LPCWSTR},
