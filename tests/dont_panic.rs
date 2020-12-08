@@ -1,4 +1,4 @@
-use windows_dll::dll;
+use windows_dll::{dll, Error};
 
 use winapi::shared::{
     ntdef::VOID,
@@ -104,4 +104,16 @@ mod test {
         #[allow(non_snake_case)]
         pub fn SetWindowCompositionAttribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
     }
+}
+
+#[test]
+fn error_is_1_byte() {
+    #[dll("user32.dll")]
+    extern "system" {
+        #[allow(non_snake_case)]
+        #[fallible]
+        fn SetWindowCompositionAttribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
+    }
+
+    assert_eq!(core::mem::size_of::<Error<SetWindowCompositionAttribute>>(), 1);
 }
