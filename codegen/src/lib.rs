@@ -67,6 +67,19 @@ use proc_macro::TokenStream;
 /// }
 /// ```
 ///
+/// # LoadLibraryExW flags
+/// This library uses the Win32 API function
+/// [LoadLibraryExW](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw)
+/// internally. You can pass flags to the dwFlags parameter
+/// by passing a second argument to the **`#[dll]`** attribute, e.g
+/// ```
+/// #[dll("bcrypt.dll", LOAD_LIBRARY_SEARCH_SYSTEM32)]
+/// extern "system" {
+///     #[link_name = "BCryptAddContextFunction"]
+///     fn bcrypt_add_context_function(dw_table: ULONG, psz_context: LPCWSTR, dw_interface: ULONG, psz_function: LPCWSTR, dw_position: ULONG) -> BOOL;
+/// }
+/// ```
+/// Available flags are re-exported from the **`flags`** module
 
 #[proc_macro_attribute]
 pub fn dll(metadata: TokenStream, input: TokenStream) -> TokenStream {
