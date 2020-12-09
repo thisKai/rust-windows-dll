@@ -9,6 +9,7 @@ use syn::{
     LitInt,
     Expr,
     ExprLit,
+    ExprPath,
     ItemForeignMod,
     ForeignItem,
     ForeignItemFn,
@@ -26,13 +27,13 @@ use quote::quote;
 use proc_macro_crate::crate_name;
 
 pub fn parse_windows_dll(metadata: TokenStream, input: TokenStream) -> Result<proc_macro2::TokenStream> {
-    let (dll_name, load_library_ex_flags) = parse_dll_name(metadata)?;
+    let (dll_name, load_library_ex_flags) = parse_attribute_args(metadata)?;
     let functions = parse_extern_block(&dll_name, load_library_ex_flags.as_ref(), input)?;
     Ok(functions)
 }
 
 /// Extract the arguments from the #[dll] macro.
-pub fn parse_dll_name(metadata: TokenStream) -> Result<(String, Option<Expr>)> {
+pub fn parse_attribute_args(metadata: TokenStream) -> Result<(String, Option<Expr>)> {
 
     // Our arguments take the form of `LitStr[, Expr]?`, where the first argument
     // is the dll name, and the second arg is a flag to pass to LoadLibraryExW.
@@ -42,10 +43,17 @@ pub fn parse_dll_name(metadata: TokenStream) -> Result<(String, Option<Expr>)> {
     let args: Punctuated<Expr, Comma> = parser.parse(metadata)?;
 
     // Extract dll name
+    let error_text = "DLL name must be a string or identifier";
     let mut args_it = args.clone().into_iter();
     let dll = match args_it.next().unwrap() {
         Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) => s.value(),
-        expr => return Err(syn::Error::new(expr.span(), "DLL name must be a string.")),
+        Expr::Path(ExprPath { path, .. }) => {
+            match path.get_ident() {
+                Some(ident) => ident.to_string(),
+                None => return Err(syn::Error::new(path.span(), error_text)),
+            }
+        },
+        expr => return Err(syn::Error::new(expr.span(), error_text)),
     };
 
     // Extract the library args (if they exist).

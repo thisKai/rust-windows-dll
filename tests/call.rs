@@ -7,7 +7,7 @@ use {
     },
 };
 
-#[dll("ntdll.dll")]
+#[dll(ntdll)]
 extern "system" {
     #[allow(non_snake_case)]
     #[fallible]

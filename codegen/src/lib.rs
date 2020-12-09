@@ -22,6 +22,13 @@ use proc_macro::TokenStream;
 ///     ...
 /// }
 /// ```
+/// if the dll name is a valid rust identifier, you can also omit the quotes, e.g:
+/// ```
+/// #[dll(user32)]
+/// extern "system" {
+///     ...
+/// }
+/// ```
 ///
 /// For each function declaration, an unsafe rust wrapper function will be generated
 /// which dynamically loads the original function from the dll.
@@ -31,7 +38,7 @@ use proc_macro::TokenStream;
 /// you can manually specify the dll symbol to load,
 /// Just put the dll symbol name in a **`#[link_name]`** attribute, e.g:
 /// ```
-/// #[dll("user32.dll")]
+/// #[dll(user32)]
 /// extern "system" {
 ///     #[link_name = "SetWindowCompositionAttribute"]
 ///     fn set_window_composition_attribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
@@ -42,7 +49,7 @@ use proc_macro::TokenStream;
 /// If you need to load a function that is exported by ordinal
 /// you can put the ordinal in a **`#[link_ordinal]`** attribute, e.g:
 /// ```
-/// #[dll("uxtheme.dll")]
+/// #[dll(uxtheme)]
 /// extern "system" {
 ///     #[link_ordinal = 133]
 ///     fn allow_dark_mode_for_window(hwnd: HWND, allow: BOOL) -> BOOL;
@@ -62,7 +69,7 @@ use proc_macro::TokenStream;
 /// To better integrate with the **`?`** operator, Just put a **`#[fallible]`** attribute
 /// on the function declaration, e.g:
 /// ```
-/// #[dll("user32.dll")]
+/// #[dll(user32)]
 /// extern "system" {
 ///     #[allow(non_snake_case)]
 ///     #[fallible]
@@ -81,7 +88,7 @@ use proc_macro::TokenStream;
 /// internally. You can pass flags to the dwFlags parameter
 /// by passing a second argument to the **`#[dll]`** attribute, e.g
 /// ```
-/// #[dll("bcrypt.dll", LOAD_LIBRARY_SEARCH_SYSTEM32)]
+/// #[dll(bcrypt, LOAD_LIBRARY_SEARCH_SYSTEM32)]
 /// extern "system" {
 ///     #[link_name = "BCryptAddContextFunction"]
 ///     fn bcrypt_add_context_function(dw_table: ULONG, psz_context: LPCWSTR, dw_interface: ULONG, psz_function: LPCWSTR, dw_position: ULONG) -> BOOL;
