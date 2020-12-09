@@ -50,7 +50,7 @@ use proc_macro::TokenStream;
 /// }
 /// ```
 ///
-/// You can also generate a wrapper function which returns a `Result<T, windows_dll::Error>`
+/// You can also generate a wrapper function which returns a `Result<T, windows_dll::Error<function_name>>`
 /// To better integrate with the **`?`** operator, Just put a **`#[fallible]`** attribute
 /// on the function declaration, e.g:
 /// ```
@@ -62,7 +62,7 @@ use proc_macro::TokenStream;
 /// }
 /// fn main() -> Result<(), Box<dyn Error>> {
 ///     ...
-///     SetWindowCompositionAttribute(h_wnd, data)?;
+///     let result: Result<BOOL, windows_dll::Error<SetWindowCompositionAttribute>> = SetWindowCompositionAttribute(h_wnd, data);
 ///     ...
 /// }
 /// ```
