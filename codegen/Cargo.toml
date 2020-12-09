@@ -1,6 +1,6 @@
 [package]
 name = "windows-dll-codegen"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Kai <thiskaiguy@gmail.com>"]
 edition = "2018"
 description = "Macro for dynamically loading windows dll functions"
