@@ -60,7 +60,7 @@ impl core::fmt::Display for Proc {
     }
 }
 
-pub trait DllProc: Sized + core::fmt::Debug {
+pub trait DllProc {
     const LIB: &'static str;
     const LIB_LPCWSTR: LPCWSTR;
     const PROC: Proc;
@@ -80,11 +80,26 @@ pub enum ErrorKind {
     Proc,
 }
 
-#[derive(Debug, Copy, Clone)]
 pub struct Error<D: DllProc> {
     pub kind: ErrorKind,
     _dll: PhantomData<D>,
 }
+impl<D: DllProc> core::fmt::Debug for Error<D> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Error")
+            .field("kind", &self.kind)
+            .field("lib", &D::LIB)
+            .field("proc", &D::PROC)
+            .finish()
+    }
+}
+impl<D: DllProc> Clone for Error<D> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<D: DllProc> Copy for Error<D> {}
+
 impl<D: DllProc> Error<D> {
     pub fn lib() -> Self {
         Self {

@@ -180,7 +180,6 @@ pub fn parse_extern_block(dll_name: &str, load_library_ex_flags: Option<&Expr>, 
 
                 quote! {
                     #[allow(non_camel_case_types)]
-                    #[derive(Debug, Copy, Clone)]
                     #vis enum #ident {}
                     impl #ident {
                         #[inline]
