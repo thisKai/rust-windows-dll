@@ -1,10 +1,10 @@
 use {
     std::error::Error,
-    windows_dll::dll,
     winapi::shared::{
         minwindef::ULONG,
         ntdef::{NTSTATUS, NT_SUCCESS, WCHAR},
     },
+    windows_dll::dll,
 };
 
 #[dll(ntdll)]

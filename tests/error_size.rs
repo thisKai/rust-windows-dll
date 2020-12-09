@@ -1,11 +1,6 @@
 use windows_dll::{dll, Error};
 
-use winapi::shared::{
-    minwindef::BOOL,
-    windef::HWND,
-    ntdef::PVOID,
-    basetsd::SIZE_T,
-};
+use winapi::shared::{basetsd::SIZE_T, minwindef::BOOL, ntdef::PVOID, windef::HWND};
 
 #[test]
 fn error_is_1_byte() {
@@ -13,12 +8,17 @@ fn error_is_1_byte() {
     extern "system" {
         #[allow(non_snake_case)]
         #[fallible]
-        fn SetWindowCompositionAttribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
+        fn SetWindowCompositionAttribute(
+            h_wnd: HWND,
+            data: *mut WINDOWCOMPOSITIONATTRIBDATA,
+        ) -> BOOL;
     }
 
-    assert_eq!(core::mem::size_of::<Error<SetWindowCompositionAttribute>>(), 1);
+    assert_eq!(
+        core::mem::size_of::<Error<SetWindowCompositionAttribute>>(),
+        1
+    );
 }
-
 
 #[allow(non_snake_case)]
 type WINDOWCOMPOSITIONATTRIB = u32;

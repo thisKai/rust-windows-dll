@@ -1,11 +1,6 @@
 use windows_dll::dll;
 
-use winapi::shared::{
-    ntdef::VOID,
-    minwindef::BOOL,
-    windef::HWND,
-};
-
+use winapi::shared::{minwindef::BOOL, ntdef::VOID, windef::HWND};
 
 #[test]
 fn link_ordinal() {
@@ -15,7 +10,6 @@ fn link_ordinal() {
         fn flush_menu_themes() -> VOID;
     }
 }
-
 
 #[test]
 fn link_ordinal_with_arguments() {

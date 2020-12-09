@@ -2,8 +2,8 @@ mod windows_dll_impl;
 
 extern crate proc_macro;
 
-use windows_dll_impl::parse_windows_dll;
 use proc_macro::TokenStream;
+use windows_dll_impl::parse_windows_dll;
 
 /// # Dynamically load functions from a windows dll
 ///

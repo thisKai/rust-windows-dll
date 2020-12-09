@@ -1,23 +1,20 @@
 use windows_dll::dll;
 
-use winapi::shared::{
-    minwindef::BOOL,
-    windef::HWND,
-    ntdef::PVOID,
-    basetsd::SIZE_T,
-};
+use winapi::shared::{basetsd::SIZE_T, minwindef::BOOL, ntdef::PVOID, windef::HWND};
 
 #[test]
 fn function_exists() {
     #[dll("user32.dll")]
     extern "system" {
         #[allow(non_snake_case)]
-        fn SetWindowCompositionAttribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
+        fn SetWindowCompositionAttribute(
+            h_wnd: HWND,
+            data: *mut WINDOWCOMPOSITIONATTRIBDATA,
+        ) -> BOOL;
     }
 
     dbg!(SetWindowCompositionAttribute::exists());
 }
-
 
 #[test]
 fn function_exists_module() {
@@ -26,14 +23,16 @@ fn function_exists_module() {
         #[dll("user32.dll")]
         extern "system" {
             #[allow(non_snake_case)]
-            pub fn SetWindowCompositionAttribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
+            pub fn SetWindowCompositionAttribute(
+                h_wnd: HWND,
+                data: *mut WINDOWCOMPOSITIONATTRIBDATA,
+            ) -> BOOL;
         }
     }
     use user32::SetWindowCompositionAttribute;
 
     dbg!(SetWindowCompositionAttribute::exists());
 }
-
 
 #[allow(non_snake_case)]
 type WINDOWCOMPOSITIONATTRIB = u32;

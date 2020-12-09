@@ -1,32 +1,18 @@
-use std::iter::once;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use syn::{
-    Result,
-    parse,
-    Ident,
-    Lit,
-    LitInt,
-    Expr,
-    ExprLit,
-    ExprPath,
-    ItemForeignMod,
-    ForeignItem,
-    ForeignItemFn,
-    Signature,
-    FnArg,
-    Meta,
-    NestedMeta,
-    ReturnType,
-    punctuated::Punctuated,
-    token::Comma,
-    parse::Parser,
-    spanned::Spanned,
-};
-use quote::quote;
 use proc_macro_crate::crate_name;
+use quote::quote;
+use std::iter::once;
+use syn::{
+    parse, parse::Parser, punctuated::Punctuated, spanned::Spanned, token::Comma, Expr, ExprLit,
+    ExprPath, FnArg, ForeignItem, ForeignItemFn, Ident, ItemForeignMod, Lit, LitInt, Meta,
+    NestedMeta, Result, ReturnType, Signature,
+};
 
-pub fn parse_windows_dll(metadata: TokenStream, input: TokenStream) -> Result<proc_macro2::TokenStream> {
+pub fn parse_windows_dll(
+    metadata: TokenStream,
+    input: TokenStream,
+) -> Result<proc_macro2::TokenStream> {
     let (dll_name, load_library_ex_flags) = parse_attribute_args(metadata)?;
     let functions = parse_extern_block(&dll_name, load_library_ex_flags.as_ref(), input)?;
     Ok(functions)
@@ -34,7 +20,6 @@ pub fn parse_windows_dll(metadata: TokenStream, input: TokenStream) -> Result<pr
 
 /// Extract the arguments from the #[dll] macro.
 pub fn parse_attribute_args(metadata: TokenStream) -> Result<(String, Option<Expr>)> {
-
     // Our arguments take the form of `LitStr[, Expr]?`, where the first argument
     // is the dll name, and the second arg is a flag to pass to LoadLibraryExW.
     // The easiest way to represent this is with a Punctuated list of expr,
@@ -46,12 +31,12 @@ pub fn parse_attribute_args(metadata: TokenStream) -> Result<(String, Option<Exp
     let error_text = "DLL name must be a string or identifier";
     let mut args_it = args.clone().into_iter();
     let dll = match args_it.next().unwrap() {
-        Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) => s.value(),
-        Expr::Path(ExprPath { path, .. }) => {
-            match path.get_ident() {
-                Some(ident) => ident.to_string(),
-                None => return Err(syn::Error::new(path.span(), error_text)),
-            }
+        Expr::Lit(ExprLit {
+            lit: Lit::Str(s), ..
+        }) => s.value(),
+        Expr::Path(ExprPath { path, .. }) => match path.get_ident() {
+            Some(ident) => ident.to_string(),
+            None => return Err(syn::Error::new(path.span(), error_text)),
         },
         expr => return Err(syn::Error::new(expr.span(), error_text)),
     };
@@ -61,13 +46,20 @@ pub fn parse_attribute_args(metadata: TokenStream) -> Result<(String, Option<Exp
 
     // Ensure there aren't any extra flags afterwards.
     if args_it.next().is_some() {
-        return Err(syn::Error::new(args.span(), "Too many arguments passed to dll macro."));
+        return Err(syn::Error::new(
+            args.span(),
+            "Too many arguments passed to dll macro.",
+        ));
     }
 
     Ok((dll, load_library_args))
 }
 
-pub fn parse_extern_block(dll_name: &str, load_library_ex_flags: Option<&Expr>, input: TokenStream) -> Result<proc_macro2::TokenStream> {
+pub fn parse_extern_block(
+    dll_name: &str,
+    load_library_ex_flags: Option<&Expr>,
+    input: TokenStream,
+) -> Result<proc_macro2::TokenStream> {
     let crate_name = crate_name("windows-dll").unwrap_or_else(|_| "windows_dll".to_string());
     let crate_name = Ident::new(&crate_name, Span::call_site());
 
@@ -250,7 +242,7 @@ impl Link {
             Self::Name(name) => {
                 let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
                 quote! { (&[#(#name_lpcstr),*]).as_ptr() }
-            },
+            }
         }
     }
 }
@@ -259,22 +251,15 @@ fn meta_value(meta: Meta) -> Option<Lit> {
     match meta {
         Meta::List(mut list) => {
             if list.nested.len() == 1 {
-                list
-                    .nested
-                    .pop()
-                    .and_then(|pair| {
-                        match pair.into_value() {
-                            NestedMeta::Lit(literal) => Some(literal),
-                            _ => None,
-                        }
-                    })
+                list.nested.pop().and_then(|pair| match pair.into_value() {
+                    NestedMeta::Lit(literal) => Some(literal),
+                    _ => None,
+                })
             } else {
                 None
             }
-        },
-        Meta::NameValue(name_value) => {
-            Some(name_value.lit)
-        },
+        }
+        Meta::NameValue(name_value) => Some(name_value.lit),
         _ => None,
     }
 }

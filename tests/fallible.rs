@@ -1,11 +1,6 @@
 use windows_dll::dll;
 
-use winapi::shared::{
-    minwindef::BOOL,
-    windef::HWND,
-    ntdef::PVOID,
-    basetsd::SIZE_T,
-};
+use winapi::shared::{basetsd::SIZE_T, minwindef::BOOL, ntdef::PVOID, windef::HWND};
 
 #[test]
 fn return_result() {
@@ -13,10 +8,12 @@ fn return_result() {
     extern "system" {
         #[allow(non_snake_case)]
         #[fallible]
-        fn SetWindowCompositionAttribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
+        fn SetWindowCompositionAttribute(
+            h_wnd: HWND,
+            data: *mut WINDOWCOMPOSITIONATTRIBDATA,
+        ) -> BOOL;
     }
 }
-
 
 #[allow(non_snake_case)]
 type WINDOWCOMPOSITIONATTRIB = u32;

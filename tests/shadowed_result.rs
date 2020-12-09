@@ -1,11 +1,6 @@
 use windows_dll::dll;
 
-use winapi::shared::{
-    minwindef::BOOL,
-    windef::HWND,
-    ntdef::PVOID,
-    basetsd::SIZE_T,
-};
+use winapi::shared::{basetsd::SIZE_T, minwindef::BOOL, ntdef::PVOID, windef::HWND};
 
 // Don't error, even if we redefine Result
 #[allow(dead_code)]
@@ -14,7 +9,10 @@ type Result = core::result::Result<(), ()>;
 #[dll("user32.dll")]
 extern "system" {
     #[allow(non_snake_case)]
-    pub fn SetWindowCompositionAttribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
+    pub fn SetWindowCompositionAttribute(
+        h_wnd: HWND,
+        data: *mut WINDOWCOMPOSITIONATTRIBDATA,
+    ) -> BOOL;
 }
 
 #[allow(non_snake_case)]
