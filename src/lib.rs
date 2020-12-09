@@ -68,6 +68,7 @@ pub trait DllProc {
     const FLAGS: DWORD;
 }
 
+/// Copied MAKEINTRESOURCEA function from winapi so that it can be const
 #[inline]
 pub const fn make_int_resource_a(i: WORD) -> LPCSTR {
     i as ULONG_PTR as _
