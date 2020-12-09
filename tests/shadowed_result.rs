@@ -8,7 +8,9 @@ use winapi::shared::{
 };
 
 // Don't error, even if we redefine Result
+#[allow(dead_code)]
 type Result = core::result::Result<(), ()>;
+
 #[dll("user32.dll")]
 extern "system" {
     #[allow(non_snake_case)]
