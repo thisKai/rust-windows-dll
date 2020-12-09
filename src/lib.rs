@@ -32,11 +32,31 @@ pub unsafe fn load_dll_proc<D: DllProc>() -> Result<FARPROC, Error<D>> {
     Ok(function_pointer)
 }
 
+
+pub mod flags {
+    pub use winapi::um::libloaderapi::{
+        DONT_RESOLVE_DLL_REFERENCES,
+        LOAD_IGNORE_CODE_AUTHZ_LEVEL,
+        LOAD_LIBRARY_AS_DATAFILE,
+        LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE,
+        LOAD_LIBRARY_AS_IMAGE_RESOURCE,
+        LOAD_LIBRARY_SEARCH_APPLICATION_DIR,
+        LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR,
+        LOAD_LIBRARY_SEARCH_SYSTEM32,
+        LOAD_LIBRARY_SEARCH_USER_DIRS,
+        LOAD_WITH_ALTERED_SEARCH_PATH,
+        LOAD_LIBRARY_REQUIRE_SIGNED_TARGET,
+        LOAD_LIBRARY_SAFE_CURRENT_DIRS,
+    };
+}
+
 #[derive(Debug, Clone)]
 pub enum Proc {
     Name(&'static str),
     Ordinal(u16),
 }
+
 impl core::fmt::Display for Proc {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {

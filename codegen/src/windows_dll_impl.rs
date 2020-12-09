@@ -7,7 +7,8 @@ use syn::{
     Ident,
     Lit,
     LitInt,
-    LitStr,
+    Expr,
+    ExprLit,
     ItemForeignMod,
     ForeignItem,
     ForeignItemFn,
@@ -16,22 +17,49 @@ use syn::{
     Meta,
     NestedMeta,
     ReturnType,
+    punctuated::Punctuated,
+    token::Comma,
+    parse::Parser,
+    spanned::Spanned,
 };
 use quote::quote;
 use proc_macro_crate::crate_name;
 
 pub fn parse_windows_dll(metadata: TokenStream, input: TokenStream) -> Result<proc_macro2::TokenStream> {
-    let dll_name = parse_dll_name(metadata)?;
-    let functions = parse_extern_block(&dll_name, input)?;
+    let (dll_name, load_library_ex_flags) = parse_dll_name(metadata)?;
+    let functions = parse_extern_block(&dll_name, load_library_ex_flags.as_ref(), input)?;
     Ok(functions)
 }
 
-pub fn parse_dll_name(metadata: TokenStream) -> Result<String> {
-    let dll_name: LitStr = parse(metadata)?;
-    Ok(dll_name.value())
+/// Extract the arguments from the #[dll] macro.
+pub fn parse_dll_name(metadata: TokenStream) -> Result<(String, Option<Expr>)> {
+
+    // Our arguments take the form of `LitStr[, Expr]?`, where the first argument
+    // is the dll name, and the second arg is a flag to pass to LoadLibraryExW.
+    // The easiest way to represent this is with a Punctuated list of expr,
+    // which we will limit to two elements manually.
+    let parser = Punctuated::<Expr, Comma>::parse_terminated;
+    let args: Punctuated<Expr, Comma> = parser.parse(metadata)?;
+
+    // Extract dll name
+    let mut args_it = args.clone().into_iter();
+    let dll = match args_it.next().unwrap() {
+        Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) => s.value(),
+        expr => return Err(syn::Error::new(expr.span(), "DLL name must be a string.")),
+    };
+
+    // Extract the library args (if they exist).
+    let load_library_args = args_it.next();
+
+    // Ensure there aren't any extra flags afterwards.
+    if args_it.next().is_some() {
+        return Err(syn::Error::new(args.span(), "Too many arguments passed to dll macro."));
+    }
+
+    Ok((dll, load_library_args))
 }
 
-pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_macro2::TokenStream> {
+pub fn parse_extern_block(dll_name: &str, load_library_ex_flags: Option<&Expr>, input: TokenStream) -> Result<proc_macro2::TokenStream> {
     let crate_name = crate_name("windows-dll").unwrap_or_else(|_| "windows_dll".to_string());
     let crate_name = Ident::new(&crate_name, Span::call_site());
 
@@ -99,6 +127,18 @@ pub fn parse_extern_block(dll_name: &str, input: TokenStream) -> Result<proc_mac
 
                 let link = link_attr.unwrap_or_else(|| Link::Name(ident.to_string()));
                 let fn_ptr = quote! { #crate_name::load_dll_proc::<#ident>() };
+
+                // Generate the flags to pass to the load_library_ex function.
+                // Defaulting to 0 will make LoadLibraryExW behave like
+                // LoadLibrary, according to the docs:
+                // > If no flags are specified, the behavior of this function is
+                // > identical to that of the LoadLibrary function.
+                // https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw
+                let flags = if let Some(expr) = load_library_ex_flags {
+                    quote! { #expr }
+                } else {
+                    quote! { 0 }
+                };
 
                 let outer_return_type = if fallible_attr {
                     match &output {

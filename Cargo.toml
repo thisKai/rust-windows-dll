@@ -6,7 +6,7 @@ members = [
 
 [package]
 name = "windows-dll"
-version = "0.2.0"
+version = "0.2.4"
 authors = ["Kai <thiskaiguy@gmail.com>"]
 edition = "2018"
 description = "Macro for dynamically loading windows dll functions"
@@ -18,12 +18,12 @@ keywords = ["windows", "win32", "dll", "macro", "ffi"]
 categories = ["development-tools::ffi", "external-ffi-bindings", "api-bindings", "os::windows-apis"]
 
 [dependencies]
-windows-dll-codegen = { version = "0.2.0", path = "codegen" }
-thiserror = "1.0"
-once_cell = "1.3"
+windows-dll-codegen = { version = "0.2.4", path = "codegen" }
+thiserror = "1"
+once_cell = "1"
 
 [dependencies.winapi]
-version = "0.3.7"
+version = "0.3"
 features = [
     "ntdef",
     "minwindef",
@@ -31,3 +31,7 @@ features = [
     "libloaderapi",
     "winuser",
 ]
+
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-msvc"
+targets = ["aarch64-pc-windows-msvc", "i686-pc-windows-msvc", "x86_64-pc-windows-msvc"]
