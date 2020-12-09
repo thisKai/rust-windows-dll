@@ -21,7 +21,7 @@ use proc_macro::TokenStream;
 /// ## Rename
 /// If you need to give the rust function a different name
 /// you can manually specify the dll symbol to load,
-/// Just put the dll symbol name in a **#\[link_name\]** attribute, e.g:
+/// Just put the dll symbol name in a **`#[link_name]`** attribute, e.g:
 /// ```
 /// #[dll("user32.dll")]
 /// extern "system" {
@@ -32,7 +32,7 @@ use proc_macro::TokenStream;
 ///
 /// ## Ordinal exports
 /// If you need to load a function that is exported by ordinal
-/// you can put the ordinal in a **#\[link_ordinal\]** attribute, e.g:
+/// you can put the ordinal in a **`#[link_ordinal]`** attribute, e.g:
 /// ```
 /// #[dll("uxtheme.dll")]
 /// extern "system" {
@@ -50,8 +50,8 @@ use proc_macro::TokenStream;
 /// }
 /// ```
 ///
-/// You can also generate a wrapper function which returns a Result<T, windows_dll::Error>
-/// To better integrate with the **?** operator, Just put a **#\[fallible\]** attribute
+/// You can also generate a wrapper function which returns a `Result<T, windows_dll::Error>`
+/// To better integrate with the **`?`** operator, Just put a **`#[fallible]`** attribute
 /// on the function declaration, e.g:
 /// ```
 /// #[dll("user32.dll")]
