@@ -15,6 +15,14 @@ use proc_macro::TokenStream;
 ///     fn SetWindowCompositionAttribute(h_wnd: HWND, data: *mut WINDOWCOMPOSITIONATTRIBDATA) -> BOOL;
 /// }
 /// ```
+/// The `.dll` file extension can be omitted if the dll name has no path, e.g
+/// ```
+/// #[dll("user32")]
+/// extern "system" {
+///     ...
+/// }
+/// ```
+///
 /// For each function declaration, an unsafe rust wrapper function will be generated
 /// which dynamically loads the original function from the dll.
 ///
