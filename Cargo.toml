@@ -6,7 +6,7 @@ members = [
 
 [package]
 name = "windows-dll"
-version = "0.2.2"
+version = "0.2.3"
 authors = ["Kai <thiskaiguy@gmail.com>"]
 edition = "2018"
 description = "Macro for dynamically loading windows dll functions"
