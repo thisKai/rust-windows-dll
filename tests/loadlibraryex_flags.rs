@@ -5,7 +5,7 @@ use winapi::shared::{
     minwindef::{BOOL, ULONG},
 };
 
-#[dll("bcrypt.dll", LOAD_LIBRARY_SEARCH_SYSTEM32)]
+#[dll("bcrypt", LOAD_LIBRARY_SEARCH_SYSTEM32)]
 extern "system" {
     #[link_name = "BCryptAddContextFunction"]
     fn bcrypt_add_context_function(dw_table: ULONG, psz_context: LPCWSTR, dw_interface: ULONG, psz_function: LPCWSTR, dw_position: ULONG) -> BOOL;
