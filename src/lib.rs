@@ -1,25 +1,27 @@
 pub use {
-    windows_dll_codegen::dll,
-    once_cell,
     core,
     core::result::Result,
-    winapi::um::winnt::{LPCSTR, LPCWSTR},
+    once_cell,
+    winapi::{
+        shared::minwindef::DWORD,
+        um::winnt::{LPCSTR, LPCWSTR},
+    },
+    windows_dll_codegen::dll,
 };
 
 use {
     core::marker::PhantomData,
     winapi::shared::{
-        minwindef::{WORD, FARPROC},
         basetsd::ULONG_PTR,
+        minwindef::{FARPROC, WORD},
     },
 };
 
-
 #[inline]
 pub unsafe fn load_dll_proc<D: DllProc>() -> Result<FARPROC, Error<D>> {
-    use winapi::um::libloaderapi::{LoadLibraryW, GetProcAddress};
+    use winapi::um::libloaderapi::{GetProcAddress, LoadLibraryExW};
 
-    let library = LoadLibraryW(D::LIB_LPCWSTR);
+    let library = LoadLibraryExW(D::LIB_LPCWSTR, std::ptr::null_mut(), D::FLAGS);
     if library.is_null() {
         return Err(Error::lib());
     }
@@ -32,22 +34,14 @@ pub unsafe fn load_dll_proc<D: DllProc>() -> Result<FARPROC, Error<D>> {
     Ok(function_pointer)
 }
 
-
 pub mod flags {
     pub use winapi::um::libloaderapi::{
-        DONT_RESOLVE_DLL_REFERENCES,
-        LOAD_IGNORE_CODE_AUTHZ_LEVEL,
-        LOAD_LIBRARY_AS_DATAFILE,
-        LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE,
-        LOAD_LIBRARY_AS_IMAGE_RESOURCE,
-        LOAD_LIBRARY_SEARCH_APPLICATION_DIR,
-        LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
-        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR,
-        LOAD_LIBRARY_SEARCH_SYSTEM32,
-        LOAD_LIBRARY_SEARCH_USER_DIRS,
-        LOAD_WITH_ALTERED_SEARCH_PATH,
-        LOAD_LIBRARY_REQUIRE_SIGNED_TARGET,
-        LOAD_LIBRARY_SAFE_CURRENT_DIRS,
+        DONT_RESOLVE_DLL_REFERENCES, LOAD_IGNORE_CODE_AUTHZ_LEVEL, LOAD_LIBRARY_AS_DATAFILE,
+        LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE, LOAD_LIBRARY_AS_IMAGE_RESOURCE,
+        LOAD_LIBRARY_REQUIRE_SIGNED_TARGET, LOAD_LIBRARY_SAFE_CURRENT_DIRS,
+        LOAD_LIBRARY_SEARCH_APPLICATION_DIR, LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR, LOAD_LIBRARY_SEARCH_SYSTEM32,
+        LOAD_LIBRARY_SEARCH_USER_DIRS, LOAD_WITH_ALTERED_SEARCH_PATH,
     };
 }
 
@@ -71,6 +65,7 @@ pub trait DllProc: Sized + core::fmt::Debug {
     const LIB_LPCWSTR: LPCWSTR;
     const PROC: Proc;
     const PROC_LPCSTR: LPCSTR;
+    const FLAGS: DWORD;
 }
 
 #[inline]

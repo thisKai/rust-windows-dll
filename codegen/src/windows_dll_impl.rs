@@ -209,6 +209,7 @@ pub fn parse_extern_block(dll_name: &str, load_library_ex_flags: Option<&Expr>, 
                         const LIB_LPCWSTR: #crate_name::LPCWSTR = #wide_dll_name;
                         const PROC: #crate_name::Proc = #proc;
                         const PROC_LPCSTR: #crate_name::LPCSTR = #proc_lpcstr;
+                        const FLAGS: #crate_name::DWORD = #flags;
                     }
 
                     #(#attrs)*
