@@ -85,26 +85,20 @@ pub fn parse_extern_block(
                     }
                 });
 
-                let fallible_attr = attrs.iter().find(|attr| {
+                let fallible_attr = attrs.iter().any(|attr| {
                     match attr.parse_meta() {
                         Ok(meta) => meta.path().is_ident("fallible"),
                         Err(_) => false,
                     }
-                }).is_some();
+                });
 
-                let attrs = attrs.into_iter().filter_map(|attr| {
+                let attrs = attrs.into_iter().filter(|attr| {
                         match attr.parse_meta() {
                             Ok(meta) => {
                                 let path = meta.path();
-                                if path.is_ident("link_ordinal") || path.is_ident("link_name") || path.is_ident("fallible") {
-                                    None
-                                } else {
-                                    Some(attr)
-                                }
+                                !(path.is_ident("link_ordinal") || path.is_ident("link_name") || path.is_ident("fallible"))
                             }
-                            Err(_) => {
-                                Some(attr)
-                            }
+                            Err(_) => true
                         }
                     });
 
