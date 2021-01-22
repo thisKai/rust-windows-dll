@@ -60,6 +60,9 @@ pub fn parse_extern_block(
     load_library_ex_flags: Option<&Expr>,
     input: TokenStream,
 ) -> Result<proc_macro2::TokenStream> {
+    let wide_dll_name = dll_name.encode_utf16().chain(once(0));
+    let wide_dll_name = quote! { (&[#(#wide_dll_name),*]).as_ptr() };
+
     let crate_name = crate_name("windows-dll").unwrap_or_else(|_| "windows_dll".to_string());
     let crate_name = Ident::new(&crate_name, Span::call_site());
 
@@ -104,7 +107,6 @@ pub fn parse_extern_block(
 
                 let Signature { ident, inputs, output, .. } = &sig;
 
-                let wide_dll_name = dll_name.encode_utf16().chain(once(0));
                 use syn::{Pat, PatType, PatIdent};
                 let argument_names = inputs.iter().map(|i| {
                     match i {
@@ -116,8 +118,6 @@ pub fn parse_extern_block(
                     }
                 });
                 let inputs: Vec<_> = inputs.into_iter().collect();
-
-                let wide_dll_name = quote! { (&[#(#wide_dll_name),*]).as_ptr() };
 
                 let link = link_attr.unwrap_or_else(|| Link::Name(ident.to_string()));
                 let fn_ptr = quote! { #crate_name::load_dll_proc::<#ident>() };
