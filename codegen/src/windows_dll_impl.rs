@@ -1,39 +1,30 @@
-use std::iter::once;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use syn::{
-    Result,
-    parse,
-    Ident,
-    Lit,
-    LitInt,
-    Expr,
-    ExprLit,
-    ItemForeignMod,
-    ForeignItem,
-    ForeignItemFn,
-    Signature,
-    FnArg,
-    Meta,
-    NestedMeta,
-    ReturnType,
-    punctuated::Punctuated,
-    token::Comma,
-    parse::Parser,
-    spanned::Spanned,
-};
-use quote::quote;
 use proc_macro_crate::crate_name;
+use quote::quote;
+use std::iter::once;
+use syn::{
+    parse, parse::Parser, punctuated::Punctuated, spanned::Spanned, token::Comma, Expr, ExprLit,
+    ExprPath, FnArg, ForeignItem, ForeignItemFn, Ident, ItemForeignMod, Lit, LitInt, Meta,
+    NestedMeta, Result, ReturnType, Signature,
+};
 
-pub fn parse_windows_dll(metadata: TokenStream, input: TokenStream) -> Result<proc_macro2::TokenStream> {
-    let (dll_name, load_library_ex_flags) = parse_dll_name(metadata)?;
-    let functions = parse_extern_block(&dll_name, load_library_ex_flags.as_ref(), input)?;
+pub fn parse_windows_dll(
+    metadata: TokenStream,
+    input: TokenStream,
+) -> Result<proc_macro2::TokenStream> {
+    let (dll_name, dll_name_span, load_library_ex_flags) = parse_attribute_args(metadata)?;
+    let functions = parse_extern_block(
+        &dll_name,
+        dll_name_span,
+        load_library_ex_flags.as_ref(),
+        input,
+    )?;
     Ok(functions)
 }
 
 /// Extract the arguments from the #[dll] macro.
-pub fn parse_dll_name(metadata: TokenStream) -> Result<(String, Option<Expr>)> {
-
+pub fn parse_attribute_args(metadata: TokenStream) -> Result<(String, Span, Option<Expr>)> {
     // Our arguments take the form of `LitStr[, Expr]?`, where the first argument
     // is the dll name, and the second arg is a flag to pass to LoadLibraryExW.
     // The easiest way to represent this is with a Punctuated list of expr,
@@ -42,10 +33,17 @@ pub fn parse_dll_name(metadata: TokenStream) -> Result<(String, Option<Expr>)> {
     let args: Punctuated<Expr, Comma> = parser.parse(metadata)?;
 
     // Extract dll name
+    let error_text = "DLL name must be a string or identifier";
     let mut args_it = args.clone().into_iter();
-    let dll = match args_it.next().unwrap() {
-        Expr::Lit(ExprLit { lit: Lit::Str(s), .. }) => s.value(),
-        expr => return Err(syn::Error::new(expr.span(), "DLL name must be a string.")),
+    let (dll, dll_span) = match args_it.next().unwrap() {
+        Expr::Lit(ExprLit {
+            lit: Lit::Str(s), ..
+        }) => (s.value(), s.span()),
+        Expr::Path(ExprPath { path, .. }) => match path.get_ident() {
+            Some(ident) => (ident.to_string(), ident.span()),
+            None => return Err(syn::Error::new(path.span(), error_text)),
+        },
+        expr => return Err(syn::Error::new(expr.span(), error_text)),
     };
 
     // Extract the library args (if they exist).
@@ -53,209 +51,245 @@ pub fn parse_dll_name(metadata: TokenStream) -> Result<(String, Option<Expr>)> {
 
     // Ensure there aren't any extra flags afterwards.
     if args_it.next().is_some() {
-        return Err(syn::Error::new(args.span(), "Too many arguments passed to dll macro."));
+        return Err(syn::Error::new(
+            args.span(),
+            "Too many arguments passed to dll macro.",
+        ));
     }
 
-    Ok((dll, load_library_args))
+    Ok((dll, dll_span, load_library_args))
 }
 
-pub fn parse_extern_block(dll_name: &str, load_library_ex_flags: Option<&Expr>, input: TokenStream) -> Result<proc_macro2::TokenStream> {
+pub fn parse_extern_block(
+    dll_name: &str,
+    dll_name_span: Span,
+    load_library_ex_flags: Option<&Expr>,
+    input: TokenStream,
+) -> Result<proc_macro2::TokenStream> {
+    let wide_dll_name = dll_name.encode_utf16().chain(once(0));
+    let wide_dll_name = quote! { (&[#(#wide_dll_name),*]).as_ptr() };
+
     let crate_name = crate_name("windows-dll").unwrap_or_else(|_| "windows_dll".to_string());
     let crate_name = Ident::new(&crate_name, Span::call_site());
 
+    let dll_type_name = if dll_name.ends_with(".dll") {
+        let mut pieces = dll_name.rsplitn(3, |c| c == '.' || c == '\\' || c == '/');
+        let _ext = pieces.next().unwrap();
+        pieces.next().unwrap()
+    } else {
+        let mut pieces = dll_name.rsplitn(3, |c| c == '\\' || c == '/');
+
+        pieces.next().unwrap()
+    };
+    let dll_type_ident = Ident::new(dll_type_name, dll_name_span);
+
+    // Generate the flags to pass to the load_library_ex function.
+    // Defaulting to 0 will make LoadLibraryExW behave like
+    // LoadLibrary, according to the docs:
+    // > If no flags are specified, the behavior of this function is
+    // > identical to that of the LoadLibrary function.
+    // https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw
+    let flags = if let Some(expr) = load_library_ex_flags {
+        quote! { #expr }
+    } else {
+        quote! { 0 }
+    };
+
+    let dll_impl = quote! {
+        #[allow(non_camel_case_types)]
+        pub enum #dll_type_ident {}
+        impl #crate_name::WindowsDll for #dll_type_ident {
+            const LIB: &'static str = #dll_name;
+            const LIB_LPCWSTR: #crate_name::LPCWSTR = #wide_dll_name;
+            const FLAGS: #crate_name::DWORD = #flags;
+
+            unsafe fn ptr() -> #crate_name::DllHandle {
+                use #crate_name::once_cell::sync::OnceCell;
+
+                static LIB_PTR: OnceCell<#crate_name::DllHandle> = OnceCell::new();
+                *LIB_PTR.get_or_init(|| Self::load())
+            }
+        }
+    };
+
     let ItemForeignMod { abi, items, .. } = parse(input)?;
 
-    let functions = items.into_iter().map(|i| {
-        match i {
-            ForeignItem::Fn(ForeignItemFn { attrs, vis, sig, .. }) => {
-                let link_attr = attrs.iter().find_map(|attr| {
-                    let meta = attr.parse_meta().ok()?;
-                    if meta.path().is_ident("link_ordinal") {
-                        match meta_value(meta)? {
-                            Lit::Int(int) => Some(Link::Ordinal(int)),
-                            _ => None,
-                        }
-                    } else if meta.path().is_ident("link_name") {
-                        match meta_value(meta)? {
-                            Lit::Str(string) => Some(Link::Name(string.value())),
-                            _ => None,
-                        }
-                    } else {
-                        None
+    let functions = items.into_iter().map(|i| match i {
+        ForeignItem::Fn(ForeignItemFn {
+            attrs, vis, sig, ..
+        }) => {
+            let link_attr = attrs.iter().find_map(|attr| {
+                let meta = attr.parse_meta().ok()?;
+                if meta.path().is_ident("link_ordinal") {
+                    match meta_value(meta)? {
+                        Lit::Int(int) => Some(Link::Ordinal(int)),
+                        _ => None,
                     }
-                });
-
-                let fallible_attr = attrs.iter().find(|attr| {
-                    match attr.parse_meta() {
-                        Ok(meta) => meta.path().is_ident("fallible"),
-                        Err(_) => false,
-                    }
-                }).is_some();
-
-                let attrs = attrs.into_iter().filter_map(|attr| {
-                        match attr.parse_meta() {
-                            Ok(meta) => {
-                                let path = meta.path();
-                                if path.is_ident("link_ordinal") || path.is_ident("link_name") || path.is_ident("fallible") {
-                                    None
-                                } else {
-                                    Some(attr)
-                                }
-                            }
-                            Err(_) => {
-                                Some(attr)
-                            }
-                        }
-                    });
-
-                let Signature { ident, inputs, output, .. } = &sig;
-
-                let wide_dll_name = dll_name.encode_utf16().chain(once(0));
-                use syn::{Pat, PatType, PatIdent};
-                let argument_names = inputs.iter().map(|i| {
-                    match i {
-                        FnArg::Typed(PatType { pat, .. }) => match &**pat {
-                            Pat::Ident(PatIdent { ident, .. }) => ident,
-                            _ => panic!("Argument type not supported"),
-                        }
-                        _ => panic!("Argument type not supported"),
-                    }
-                });
-                let inputs: Vec<_> = inputs.into_iter().collect();
-
-                let error = format!("Could not load function {} from {}", &ident, dll_name);
-
-                let wide_dll_name = quote! { (&[#(#wide_dll_name),*]).as_ptr() };
-
-                // Generate the flags to pass to the load_library_ex function.
-                // Defaulting to 0 will make LoadLibraryExW behave like
-                // LoadLibrary, according to the docs:
-                // > If no flags are specified, the behavior of this function is
-                // > identical to that of the LoadLibrary function.
-                // https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw
-                let flags = if let Some(expr) = load_library_ex_flags {
-                    quote! { #expr }
-                } else {
-                    quote! { 0 }
-                };
-
-                let func_ptr = match link_attr {
-                    Some(Link::Ordinal(ordinal)) => quote! {
-                        load_dll_proc_ordinal(#dll_name, #crate_name::Proc::Ordinal(#ordinal), #wide_dll_name, #ordinal, #flags)
-                    },
-                    Some(Link::Name(name)) => {
-                        let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
-                        quote! {
-                            load_dll_proc_name(#dll_name, #crate_name::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr(), #flags)
-                        }
-                    },
-                    _ => {
-                        let name = ident.to_string();
-                        let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
-                        quote! {
-                            load_dll_proc_name(#dll_name, #crate_name::Proc::Name(#name), #wide_dll_name, (&[#(#name_lpcstr),*]).as_ptr(), #flags)
-                        }
-                    },
-                };
-
-                let outer_return_type = if fallible_attr {
-                    match &output {
-                        ReturnType::Default => {
-                            quote! { -> #crate_name::Result<(), #crate_name::Error> }
-                        }
-                        ReturnType::Type(_, ty) => {
-                            quote! { -> #crate_name::Result<#ty, #crate_name::Error> }
-                        }
+                } else if meta.path().is_ident("link_name") {
+                    match meta_value(meta)? {
+                        Lit::Str(string) => Some(Link::Name(string.value())),
+                        _ => None,
                     }
                 } else {
-                    quote! { #output }
-                };
+                    None
+                }
+            });
 
-                let get_func_ptr = if fallible_attr {
-                    quote! { ::ptr_clone_err()? }
-                } else {
-                    quote! { ::ptr().expect(#error) }
-                };
+            let fallible_attr = attrs.iter().any(|attr| match attr.parse_meta() {
+                Ok(meta) => meta.path().is_ident("fallible"),
+                Err(_) => false,
+            });
 
-                let return_value = quote! { func( #(#argument_names),* ) };
-                let return_value = if fallible_attr {
-                    quote! { Ok(#return_value) }
-                } else {
-                    return_value
-                };
+            let attrs = attrs.into_iter().filter(|attr| match attr.parse_meta() {
+                Ok(meta) => {
+                    let path = meta.path();
+                    !(path.is_ident("link_ordinal")
+                        || path.is_ident("link_name")
+                        || path.is_ident("fallible"))
+                }
+                Err(_) => true,
+            });
 
-                quote! {
-                    #[allow(non_camel_case_types)]
-                    #vis enum #ident {}
-                    impl #ident {
-                        #[inline]
-                        unsafe fn ptr() -> #crate_name::Result<&'static unsafe #abi fn( #(#inputs),* ) #output, &'static #crate_name::Error> {
-                            use {
-                                #crate_name::{
-                                    load::{
-                                        load_dll_proc_name,
-                                        load_dll_proc_ordinal,
-                                    },
-                                    once_cell::sync::OnceCell,
-                                    core::mem::transmute,
-                                    Result,
-                                },
-                            };
-                            static FUNC_PTR: OnceCell<Result<unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error>> = OnceCell::new();
-                            FUNC_PTR.get_or_init(|| {
-                                let func_ptr = #func_ptr?;
+            let Signature {
+                ident,
+                inputs,
+                output,
+                ..
+            } = &sig;
 
-                                Ok(transmute(func_ptr))
-                            }).as_ref()
-                        }
-                        #[inline]
-                        unsafe fn ptr_clone_err() -> #crate_name::Result<&'static unsafe #abi fn( #(#inputs),* ) #output, #crate_name::Error> {
-                            Self::ptr().map_err(|err| err.clone())
-                        }
-                        pub fn exists() -> bool {
-                            unsafe { Self::ptr().is_ok() }
-                        }
+            use syn::{Pat, PatIdent, PatType};
+            let argument_names = inputs.iter().map(|i| match i {
+                FnArg::Typed(PatType { pat, .. }) => match &**pat {
+                    Pat::Ident(PatIdent { ident, .. }) => ident,
+                    _ => panic!("Argument type not supported"),
+                },
+                _ => panic!("Argument type not supported"),
+            });
+            let inputs: Vec<_> = inputs.into_iter().collect();
+
+            let link = link_attr.unwrap_or_else(|| Link::Name(ident.to_string()));
+
+            let outer_return_type = if fallible_attr {
+                match &output {
+                    ReturnType::Default => {
+                        quote! { -> #crate_name::Result<(), #crate_name::Error<#ident>> }
                     }
-
-                    #(#attrs)*
-                    #vis unsafe fn #ident ( #(#inputs),* ) #outer_return_type {
-                        let func = #ident#get_func_ptr;
-
-                        #return_value
+                    ReturnType::Type(_, ty) => {
+                        quote! { -> #crate_name::Result<#ty, #crate_name::Error<#ident>> }
                     }
                 }
-            },
-            _ => panic!("Not a function"),
+            } else {
+                quote! { #output }
+            };
+
+            let get_fn_ptr = if fallible_attr {
+                quote! {
+                    <#ident as #crate_name::WindowsDllProc>::proc()?
+                }
+            } else {
+                quote! {
+                    <#ident as #crate_name::WindowsDllProc>::proc()
+                        .unwrap_or_else(|err| panic!("{}", err))
+                }
+            };
+
+            let return_value = quote! { func( #(#argument_names),* ) };
+            let return_value = if fallible_attr {
+                quote! { Ok(#return_value) }
+            } else {
+                return_value
+            };
+            let proc = link.proc(&crate_name);
+            let proc_lpcstr = link.proc_lpcstr(&crate_name);
+
+            quote! {
+                #[allow(non_camel_case_types)]
+                #vis enum #ident {}
+                impl #ident {
+                    pub fn exists() -> bool {
+                        unsafe { <Self as #crate_name::WindowsDllProc>::exists() }
+                    }
+                }
+
+                impl #crate_name::WindowsDllProc for #ident {
+                    type Dll = #dll_type_ident;
+                    type Sig = unsafe #abi fn( #(#inputs),* ) #output;
+                    const PROC: #crate_name::Proc = #proc;
+                    const PROC_LPCSTR: #crate_name::LPCSTR = #proc_lpcstr;
+
+                    unsafe fn proc() -> #crate_name::Result<Self::Sig, #crate_name::Error<#ident>> {
+                        use #crate_name::{
+                            Error,
+                            Option,
+                            Result,
+                            core::mem::transmute,
+                            once_cell::sync::OnceCell,
+                        };
+
+                        static PROC_PTR: OnceCell<Result<
+                            unsafe #abi fn( #(#inputs),* ) #output,
+                            Error<#ident>,
+                        >> = OnceCell::new();
+
+                        *PROC_PTR.get_or_init(|| {
+                            let ptr = Self::load()?;
+                            Ok(transmute(ptr))
+                        })
+                    }
+                }
+
+                #(#attrs)*
+                #vis unsafe fn #ident ( #(#inputs),* ) #outer_return_type {
+                    let func = #get_fn_ptr;
+
+                    #return_value
+                }
+            }
         }
+        _ => panic!("Not a function"),
     });
-    Ok(functions.collect())
+
+    Ok(quote! {
+        #dll_impl
+        #(#functions)*
+    })
 }
 
 enum Link {
     Ordinal(LitInt),
     Name(String),
 }
+impl Link {
+    fn proc(&self, crate_name: &Ident) -> proc_macro2::TokenStream {
+        match self {
+            Self::Ordinal(ordinal) => quote! { #crate_name::Proc::Ordinal(#ordinal) },
+            Self::Name(name) => quote! { #crate_name::Proc::Name(#name) },
+        }
+    }
+    fn proc_lpcstr(&self, crate_name: &Ident) -> proc_macro2::TokenStream {
+        match self {
+            Self::Ordinal(ordinal) => quote! { #crate_name::make_int_resource_a(#ordinal) },
+            Self::Name(name) => {
+                let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
+                quote! { (&[#(#name_lpcstr),*]).as_ptr() }
+            }
+        }
+    }
+}
 
 fn meta_value(meta: Meta) -> Option<Lit> {
     match meta {
         Meta::List(mut list) => {
             if list.nested.len() == 1 {
-                list
-                    .nested
-                    .pop()
-                    .and_then(|pair| {
-                        match pair.into_value() {
-                            NestedMeta::Lit(literal) => Some(literal),
-                            _ => None,
-                        }
-                    })
+                list.nested.pop().and_then(|pair| match pair.into_value() {
+                    NestedMeta::Lit(literal) => Some(literal),
+                    _ => None,
+                })
             } else {
                 None
             }
-        },
-        Meta::NameValue(name_value) => {
-            Some(name_value.lit)
-        },
+        }
+        Meta::NameValue(name_value) => Some(name_value.lit),
         _ => None,
     }
 }
