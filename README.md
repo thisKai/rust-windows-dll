@@ -1,4 +1,6 @@
 # windows-dll
+![Rust](https://github.com/thisKai/rust-windows-dll/workflows/Rust/badge.svg)
+
 Macro for dynamically loading windows dll functions
 
 ## Usage
