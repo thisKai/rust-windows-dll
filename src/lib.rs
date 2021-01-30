@@ -3,24 +3,28 @@ pub use windows_dll_codegen::dll;
 pub use {
     core::{self, option::Option, result::Result},
     once_cell,
-    winapi::{
-        shared::minwindef::{DWORD, FALSE, FARPROC, TRUE},
-        um::winnt::{LPCSTR, LPCWSTR},
-    },
 };
 
-use {
-    core::marker::PhantomData,
-    winapi::{
-        shared::{
-            basetsd::ULONG_PTR,
-            minwindef::{HMODULE, WORD},
-        },
-        um::libloaderapi::{FreeLibrary, GetProcAddress, LoadLibraryExW},
+#[doc(hidden)]
+#[cfg(feature = "winapi")]
+pub use winapi::{
+    shared::minwindef::{DWORD, FALSE, FARPROC, TRUE},
+    um::winnt::{LPCSTR, LPCWSTR},
+};
+
+use core::marker::PhantomData;
+
+#[cfg(feature = "winapi")]
+use winapi::{
+    shared::{
+        basetsd::ULONG_PTR,
+        minwindef::{HMODULE, WORD},
     },
+    um::libloaderapi::{FreeLibrary, GetProcAddress, LoadLibraryExW},
 };
 
 pub mod flags {
+    #[cfg(feature = "winapi")]
     pub use winapi::um::libloaderapi::{
         DONT_RESOLVE_DLL_REFERENCES, LOAD_IGNORE_CODE_AUTHZ_LEVEL, LOAD_LIBRARY_AS_DATAFILE,
         LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE, LOAD_LIBRARY_AS_IMAGE_RESOURCE,

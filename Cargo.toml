@@ -17,6 +17,9 @@ license = "MIT"
 keywords = ["windows", "win32", "dll", "macro", "ffi"]
 categories = ["development-tools::ffi", "external-ffi-bindings", "api-bindings", "os::windows-apis"]
 
+[features]
+default = ["winapi"]
+
 [dependencies]
 windows-dll-codegen = { version = "0.3.0", path = "codegen" }
 thiserror = "1"
@@ -24,6 +27,7 @@ once_cell = "1"
 
 [dependencies.winapi]
 version = "0.3"
+optional = true
 features = [
     "ntdef",
     "minwindef",
