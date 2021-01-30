@@ -1,3 +1,5 @@
+pub use windows_dll_codegen::dll;
+#[doc(hidden)]
 pub use {
     core::{self, option::Option, result::Result},
     once_cell,
@@ -5,16 +7,15 @@ pub use {
         shared::minwindef::{DWORD, FALSE, FARPROC, TRUE},
         um::winnt::{LPCSTR, LPCWSTR},
     },
-    windows_dll_codegen::dll,
 };
 
 use {
     core::marker::PhantomData,
     winapi::{
         shared::{
-        basetsd::ULONG_PTR,
-        minwindef::{HMODULE, WORD},
-    },
+            basetsd::ULONG_PTR,
+            minwindef::{HMODULE, WORD},
+        },
         um::libloaderapi::{FreeLibrary, GetProcAddress, LoadLibraryExW},
     },
 };
@@ -106,7 +107,8 @@ pub trait WindowsDllProc: Sized {
     }
 }
 
-/// Copied MAKEINTRESOURCEA function from winapi so that it can be const
+// Copied MAKEINTRESOURCEA function from winapi so that it can be const
+#[doc(hidden)]
 #[inline]
 pub const fn make_int_resource_a(i: WORD) -> LPCSTR {
     i as ULONG_PTR as _
