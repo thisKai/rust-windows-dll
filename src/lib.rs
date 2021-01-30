@@ -1,9 +1,8 @@
 pub use {
-    core,
-    core::result::Result,
+    core::{self, option::Option, result::Result},
     once_cell,
     winapi::{
-        shared::minwindef::DWORD,
+        shared::minwindef::{DWORD, FALSE, FARPROC, TRUE},
         um::winnt::{LPCSTR, LPCWSTR},
     },
     windows_dll_codegen::dll,
@@ -13,26 +12,9 @@ use {
     core::marker::PhantomData,
     winapi::shared::{
         basetsd::ULONG_PTR,
-        minwindef::{FARPROC, WORD},
+        minwindef::{HMODULE, WORD},
     },
 };
-
-#[inline]
-pub unsafe fn load_dll_proc<D: DllProc>() -> Result<FARPROC, Error<D>> {
-    use winapi::um::libloaderapi::{GetProcAddress, LoadLibraryExW};
-
-    let library = LoadLibraryExW(D::LIB_LPCWSTR, std::ptr::null_mut(), D::FLAGS);
-    if library.is_null() {
-        return Err(Error::lib());
-    }
-
-    let function_pointer = GetProcAddress(library, D::PROC_LPCSTR);
-    if function_pointer.is_null() {
-        return Err(Error::proc());
-    }
-
-    Ok(function_pointer)
-}
 
 pub mod flags {
     pub use winapi::um::libloaderapi::{
@@ -60,12 +42,71 @@ impl core::fmt::Display for Proc {
     }
 }
 
-pub trait DllProc {
+#[derive(Clone, Copy)]
+pub struct DllHandle(HMODULE);
+impl DllHandle {
+    fn is_null(&self) -> bool {
+        self.0.is_null()
+    }
+}
+unsafe impl Send for DllHandle {}
+unsafe impl Sync for DllHandle {}
+
+pub trait WindowsDll {
     const LIB: &'static str;
+
     const LIB_LPCWSTR: LPCWSTR;
+    const FLAGS: DWORD;
+
+    unsafe fn ptr() -> DllHandle;
+    unsafe fn load() -> DllHandle {
+        use winapi::um::libloaderapi::LoadLibraryExW;
+
+        DllHandle(LoadLibraryExW(
+            Self::LIB_LPCWSTR,
+            std::ptr::null_mut(),
+            Self::FLAGS,
+        ))
+    }
+    unsafe fn free() -> bool {
+        use winapi::um::libloaderapi::FreeLibrary;
+
+        let library = Self::ptr();
+        if library.is_null() {
+            false
+        } else {
+            let succeeded = FreeLibrary(library.0);
+            succeeded == TRUE
+        }
+    }
+}
+
+pub trait WindowsDllProc: Sized {
+    type Dll: WindowsDll;
+    type Sig;
     const PROC: Proc;
     const PROC_LPCSTR: LPCSTR;
-    const FLAGS: DWORD;
+
+    unsafe fn proc() -> Result<Self::Sig, Error<Self>>;
+    unsafe fn load() -> Result<FARPROC, Error<Self>> {
+        use winapi::um::libloaderapi::GetProcAddress;
+
+        let library = Self::Dll::ptr();
+
+        if library.is_null() {
+            Err(Error::lib())
+        } else {
+            let proc = GetProcAddress(library.0, Self::PROC_LPCSTR);
+            if proc.is_null() {
+                Err(Error::proc())
+            } else {
+                Ok(proc)
+            }
+        }
+    }
+    unsafe fn exists() -> bool {
+        Self::proc().is_ok()
+    }
 }
 
 /// Copied MAKEINTRESOURCEA function from winapi so that it can be const
@@ -81,27 +122,27 @@ pub enum ErrorKind {
     Proc,
 }
 
-pub struct Error<D: DllProc> {
+pub struct Error<D: WindowsDllProc> {
     pub kind: ErrorKind,
     _dll: PhantomData<D>,
 }
-impl<D: DllProc> core::fmt::Debug for Error<D> {
+impl<D: WindowsDllProc> core::fmt::Debug for Error<D> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Error")
             .field("kind", &self.kind)
-            .field("lib", &D::LIB)
+            .field("lib", &D::Dll::LIB)
             .field("proc", &D::PROC)
             .finish()
     }
 }
-impl<D: DllProc> Clone for Error<D> {
+impl<D: WindowsDllProc> Clone for Error<D> {
     fn clone(&self) -> Self {
         *self
     }
 }
-impl<D: DllProc> Copy for Error<D> {}
+impl<D: WindowsDllProc> Copy for Error<D> {}
 
-impl<D: DllProc> Error<D> {
+impl<D: WindowsDllProc> Error<D> {
     pub fn lib() -> Self {
         Self {
             kind: ErrorKind::Lib,
@@ -115,12 +156,12 @@ impl<D: DllProc> Error<D> {
         }
     }
 }
-impl<D: DllProc> core::fmt::Display for Error<D> {
+impl<D: WindowsDllProc> core::fmt::Display for Error<D> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match &self.kind {
-            ErrorKind::Lib => write!(f, "Could not load {}", D::LIB),
-            ErrorKind::Proc => write!(f, "Could not load {}#{}", D::LIB, D::PROC),
+            ErrorKind::Lib => write!(f, "Could not load {}", D::Dll::LIB),
+            ErrorKind::Proc => write!(f, "Could not load {}#{}", D::Dll::LIB, D::PROC),
         }
     }
 }
-impl<D: DllProc> std::error::Error for Error<D> {}
+impl<D: WindowsDllProc> std::error::Error for Error<D> {}
