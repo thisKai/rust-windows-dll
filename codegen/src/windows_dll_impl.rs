@@ -184,17 +184,12 @@ pub fn parse_extern_block(
 
             let get_fn_ptr = if fallible_attr {
                 quote! {
-                    match <#ident as #crate_name::WindowsDllProc>::proc() {
-                        Ok(fn_ptr) => fn_ptr,
-                        Err(err) => return Err(err),
-                    }
+                    <#ident as #crate_name::WindowsDllProc>::proc()?
                 }
             } else {
                 quote! {
-                    match <#ident as #crate_name::WindowsDllProc>::proc() {
-                        Ok(fn_ptr) => fn_ptr,
-                        Err(err) => panic!("{}", err),
-                    }
+                    <#ident as #crate_name::WindowsDllProc>::proc()
+                        .unwrap_or_else(|err| panic!("{}", err))
                 }
             };
 
