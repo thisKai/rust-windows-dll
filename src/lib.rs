@@ -10,9 +10,12 @@ pub use {
 
 use {
     core::marker::PhantomData,
-    winapi::shared::{
+    winapi::{
+        shared::{
         basetsd::ULONG_PTR,
         minwindef::{HMODULE, WORD},
+    },
+        um::libloaderapi::{FreeLibrary, GetProcAddress, LoadLibraryExW},
     },
 };
 
@@ -60,8 +63,6 @@ pub trait WindowsDll {
 
     unsafe fn ptr() -> DllHandle;
     unsafe fn load() -> DllHandle {
-        use winapi::um::libloaderapi::LoadLibraryExW;
-
         DllHandle(LoadLibraryExW(
             Self::LIB_LPCWSTR,
             std::ptr::null_mut(),
@@ -69,8 +70,6 @@ pub trait WindowsDll {
         ))
     }
     unsafe fn free() -> bool {
-        use winapi::um::libloaderapi::FreeLibrary;
-
         let library = Self::ptr();
         if library.is_null() {
             false
@@ -89,8 +88,6 @@ pub trait WindowsDllProc: Sized {
 
     unsafe fn proc() -> Result<Self::Sig, Error<Self>>;
     unsafe fn load() -> Result<FARPROC, Error<Self>> {
-        use winapi::um::libloaderapi::GetProcAddress;
-
         let library = Self::Dll::ptr();
 
         if library.is_null() {
