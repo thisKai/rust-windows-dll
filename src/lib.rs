@@ -12,7 +12,7 @@ pub use winapi::{
     um::winnt::{LPCSTR, LPCWSTR},
 };
 
-use core::marker::PhantomData;
+use core::{marker::PhantomData, mem::transmute};
 
 #[cfg(feature = "winapi")]
 use winapi::{
@@ -25,6 +25,11 @@ use winapi::{
 
 #[cfg(feature = "winapi")]
 pub mod flags {
+    pub const NO_FLAGS: LOAD_LIBRARY_FLAGS = 0;
+
+    #[allow(non_camel_case_types)]
+    pub type LOAD_LIBRARY_FLAGS = super::DWORD;
+
     pub use winapi::um::libloaderapi::{
         DONT_RESOLVE_DLL_REFERENCES, LOAD_IGNORE_CODE_AUTHZ_LEVEL, LOAD_LIBRARY_AS_DATAFILE,
         LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE, LOAD_LIBRARY_AS_IMAGE_RESOURCE,
@@ -37,42 +42,40 @@ pub mod flags {
 
 #[cfg(feature = "windows")]
 mod windows_rs {
-    ::windows::include_bindings!();
     #[allow(non_camel_case_types)]
     pub type ULONG_PTR = usize;
-    pub type HMODULE = isize;
     pub type DWORD = u32;
     pub type WORD = u16;
     pub type LPCWSTR = *const u16;
-    pub type LPCSTR = *const i8;
+    pub type LPCSTR = *const u8;
 }
 #[cfg(feature = "windows")]
-use windows_rs::{
-    windows::win32::system_services::{
-        FreeLibrary, GetProcAddress, LoadLibraryExW, FARPROC, HANDLE,
-    },
-    HMODULE, ULONG_PTR, WORD,
-};
-#[cfg(feature = "windows")]
 pub use windows_rs::{DWORD, LPCSTR, LPCWSTR};
+#[cfg(feature = "windows")]
+use {
+    windows::{
+        core::{PCSTR, PCWSTR},
+        Win32::{
+            Foundation::{HANDLE, HINSTANCE as HMODULE},
+            System::LibraryLoader::{FreeLibrary, GetProcAddress, LoadLibraryExW},
+        },
+    },
+    windows_rs::{ULONG_PTR, WORD},
+};
 
 #[cfg(feature = "windows")]
 pub mod flags {
-    pub const DONT_RESOLVE_DLL_REFERENCES: u32 = 0x00000001;
-    pub const LOAD_LIBRARY_AS_DATAFILE: u32 = 0x00000002;
-    pub const LOAD_WITH_ALTERED_SEARCH_PATH: u32 = 0x00000008;
-    pub const LOAD_IGNORE_CODE_AUTHZ_LEVEL: u32 = 0x00000010;
-    pub const LOAD_LIBRARY_AS_IMAGE_RESOURCE: u32 = 0x00000020;
-    pub const LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE: u32 = 0x00000040;
-    pub const LOAD_LIBRARY_REQUIRE_SIGNED_TARGET: u32 = 0x00000080;
-    pub const LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR: u32 = 0x00000100;
-    pub const LOAD_LIBRARY_SEARCH_APPLICATION_DIR: u32 = 0x00000200;
-    pub const LOAD_LIBRARY_SEARCH_USER_DIRS: u32 = 0x00000400;
-    pub const LOAD_LIBRARY_SEARCH_SYSTEM32: u32 = 0x00000800;
-    pub const LOAD_LIBRARY_SEARCH_DEFAULT_DIRS: u32 = 0x00001000;
-    pub const LOAD_LIBRARY_SAFE_CURRENT_DIRS: u32 = 0x00002000;
-    pub const LOAD_LIBRARY_SEARCH_SYSTEM32_NO_FORWARDER: u32 = 0x00004000;
-    pub const LOAD_LIBRARY_OS_INTEGRITY_CONTINUITY: u32 = 0x00008000;
+    pub const NO_FLAGS: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS(0);
+
+    pub use windows::Win32::System::LibraryLoader::{
+        DONT_RESOLVE_DLL_REFERENCES, LOAD_IGNORE_CODE_AUTHZ_LEVEL, LOAD_LIBRARY_AS_DATAFILE,
+        LOAD_LIBRARY_AS_DATAFILE_EXCLUSIVE, LOAD_LIBRARY_AS_IMAGE_RESOURCE, LOAD_LIBRARY_FLAGS,
+        LOAD_LIBRARY_OS_INTEGRITY_CONTINUITY, LOAD_LIBRARY_REQUIRE_SIGNED_TARGET,
+        LOAD_LIBRARY_SAFE_CURRENT_DIRS, LOAD_LIBRARY_SEARCH_APPLICATION_DIR,
+        LOAD_LIBRARY_SEARCH_DEFAULT_DIRS, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR,
+        LOAD_LIBRARY_SEARCH_SYSTEM32, LOAD_LIBRARY_SEARCH_SYSTEM32_NO_FORWARDER,
+        LOAD_LIBRARY_SEARCH_USER_DIRS, LOAD_WITH_ALTERED_SEARCH_PATH,
+    };
 }
 
 #[derive(Debug, Clone)]
@@ -99,78 +102,97 @@ impl DllHandle {
     }
     #[cfg(feature = "windows")]
     fn is_null(&self) -> bool {
-        self.0 == 0
+        self.0 .0 == 0
     }
 }
 unsafe impl Send for DllHandle {}
 unsafe impl Sync for DllHandle {}
 
-pub trait WindowsDll {
+pub trait WindowsDll: Sized {
     const LIB: &'static str;
 
     const LIB_LPCWSTR: LPCWSTR;
-    const FLAGS: DWORD;
+    const FLAGS: flags::LOAD_LIBRARY_FLAGS;
 
     unsafe fn ptr() -> DllHandle;
+
     unsafe fn load() -> DllHandle {
-        #[cfg(feature = "winapi")]
-        let h_file = std::ptr::null_mut();
-
-        #[cfg(feature = "windows")]
-        let h_file = HANDLE(0);
-
-        DllHandle(LoadLibraryExW(Self::LIB_LPCWSTR, h_file, Self::FLAGS))
+        load_lib::<Self>()
     }
-    #[cfg(feature = "winapi")]
+
     unsafe fn free() -> bool {
         let library = Self::ptr();
         if library.is_null() {
             false
         } else {
-            let succeeded = FreeLibrary(library.0);
-            succeeded == TRUE
-        }
-    }
-    #[cfg(feature = "windows")]
-    unsafe fn free() -> bool {
-        let library = Self::ptr();
-        if library.is_null() {
-            false
-        } else {
-            FreeLibrary(library.0).is_ok()
+            free_lib(library)
         }
     }
 }
 
+#[cfg(feature = "winapi")]
+unsafe fn load_lib<T: WindowsDll>() -> DllHandle {
+    let h_file = std::ptr::null_mut();
+
+    DllHandle(LoadLibraryExW(T::LIB_LPCWSTR, h_file, T::FLAGS))
+}
+#[cfg(feature = "windows")]
+unsafe fn load_lib<T: WindowsDll>() -> DllHandle {
+    let h_file = HANDLE(0);
+
+    DllHandle(LoadLibraryExW(
+        PCWSTR(T::LIB_LPCWSTR),
+        h_file,
+        T::FLAGS,
+    ))
+}
+
+#[cfg(feature = "winapi")]
+unsafe fn free_lib(library: DllHandle) -> bool {
+    let succeeded = FreeLibrary(library.0);
+    succeeded == TRUE
+}
+#[cfg(feature = "windows")]
+unsafe fn free_lib(library: DllHandle) -> bool {
+    FreeLibrary(library.0).as_bool()
+}
+
 pub trait WindowsDllProc: Sized {
     type Dll: WindowsDll;
-    type Sig;
+    type Sig: Copy;
     const PROC: Proc;
     const PROC_LPCSTR: LPCSTR;
 
     unsafe fn proc() -> Result<Self::Sig, Error<Self>>;
-    unsafe fn load() -> Result<FARPROC, Error<Self>> {
+    unsafe fn load() -> Result<Self::Sig, Error<Self>> {
         let library = Self::Dll::ptr();
 
         if library.is_null() {
             Err(Error::lib())
         } else {
-            let proc = GetProcAddress(library.0, Self::PROC_LPCSTR);
-
-            #[cfg(feature = "winapi")]
-            if proc.is_null() {
-                Err(Error::proc())
-            } else {
-                Ok(proc)
-            }
-
-            #[cfg(feature = "windows")]
-            proc.ok_or(Error::proc())
+            get_proc::<Self>(library)
         }
     }
     unsafe fn exists() -> bool {
         Self::proc().is_ok()
     }
+}
+
+#[cfg(feature = "winapi")]
+unsafe fn get_proc<T: WindowsDllProc>(library: DllHandle) -> Result<T::Sig, Error<T>> {
+    let proc = GetProcAddress(library.0, T::PROC_LPCSTR as _);
+
+    if proc.is_null() {
+        Err(Error::proc())
+    } else {
+        Ok(*transmute::<_, &T::Sig>(&proc))
+    }
+}
+#[cfg(feature = "windows")]
+unsafe fn get_proc<T: WindowsDllProc>(library: DllHandle) -> Result<T::Sig, Error<T>> {
+    GetProcAddress(library.0, PCSTR(T::PROC_LPCSTR))
+        .map(|proc| *transmute::<_, &T::Sig>(&proc))
+        .ok_or_else(Error::proc)
 }
 
 // Copied MAKEINTRESOURCEA function from winapi so that it can be const

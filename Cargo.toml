@@ -24,7 +24,14 @@ default = ["winapi"]
 windows-dll-codegen = { version = "0.3.0", path = "codegen" }
 thiserror = "1"
 once_cell = "1"
-windows = { version = "0.2", optional = true }
+
+[dependencies.windows]
+version = "0.33"
+optional = true
+features = [
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
+]
 
 [dependencies.winapi]
 version = "0.3"
@@ -36,9 +43,6 @@ features = [
     "libloaderapi",
     "winuser",
 ]
-
-[build-dependencies]
-windows = { version = "0.2", optional = true }
 
 [dev-dependencies]
 minifb = "0.19"

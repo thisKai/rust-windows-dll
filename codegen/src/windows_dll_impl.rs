@@ -92,7 +92,7 @@ pub fn parse_extern_block(
     let flags = if let Some(expr) = load_library_ex_flags {
         quote! { #expr }
     } else {
-        quote! { 0 }
+        quote! { #crate_name::flags::NO_FLAGS }
     };
 
     let dll_impl = quote! {
@@ -101,7 +101,7 @@ pub fn parse_extern_block(
         impl #crate_name::WindowsDll for #dll_type_ident {
             const LIB: &'static str = #dll_name;
             const LIB_LPCWSTR: #crate_name::LPCWSTR = #wide_dll_name;
-            const FLAGS: #crate_name::DWORD = #flags;
+            const FLAGS: #crate_name::flags::LOAD_LIBRARY_FLAGS = #flags;
 
             unsafe fn ptr() -> #crate_name::DllHandle {
                 use #crate_name::once_cell::sync::OnceCell;
@@ -222,7 +222,6 @@ pub fn parse_extern_block(
                             Error,
                             Option,
                             Result,
-                            core::mem::transmute,
                             once_cell::sync::OnceCell,
                         };
 
@@ -231,10 +230,7 @@ pub fn parse_extern_block(
                             Error<#ident>,
                         >> = OnceCell::new();
 
-                        *PROC_PTR.get_or_init(|| {
-                            let ptr = Self::load()?;
-                            Ok(transmute(ptr))
-                        })
+                        *PROC_PTR.get_or_init(|| Self::load())
                     }
                 }
 
@@ -270,8 +266,8 @@ impl Link {
         match self {
             Self::Ordinal(ordinal) => quote! { #crate_name::make_int_resource_a(#ordinal) },
             Self::Name(name) => {
-                let name_lpcstr = name.as_bytes().iter().map(|c| *c as i8).chain(once(0));
-                quote! { (&[#(#name_lpcstr),*]).as_ptr() }
+                let name_lpcstr = name.bytes().chain(once(0));
+                quote! { (&[#(#name_lpcstr),*]).as_ptr() as _ }
             }
         }
     }
