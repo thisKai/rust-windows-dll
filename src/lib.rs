@@ -1,13 +1,11 @@
 mod platform;
+#[doc(hidden)]
+pub use core::{self, option::Option, result::Result};
 pub use platform::{flags, LPCSTR, LPCWSTR};
 pub use windows_dll_codegen::dll;
-#[doc(hidden)]
-pub use {
-    core::{self, option::Option, result::Result},
-    once_cell,
-};
 
 use core::marker::PhantomData;
+use once_cell::sync::Lazy;
 
 #[derive(Debug, Clone)]
 pub enum Proc {
@@ -82,7 +80,6 @@ pub trait WindowsDllProc: Sized {
     }
 }
 
-
 // Copied MAKEINTRESOURCEA function from winapi so that it can be const
 #[doc(hidden)]
 #[inline]
@@ -140,3 +137,6 @@ impl<D: WindowsDllProc> core::fmt::Display for Error<D> {
     }
 }
 impl<D: WindowsDllProc> std::error::Error for Error<D> {}
+
+pub type DllCache = Lazy<DllHandle>;
+pub type DllProcCache<D> = Lazy<Result<<D as WindowsDllProc>::Sig, Error<D>>>;

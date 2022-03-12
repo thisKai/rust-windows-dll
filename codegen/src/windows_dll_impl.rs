@@ -104,10 +104,10 @@ pub fn parse_extern_block(
             const FLAGS: #crate_name::flags::LOAD_LIBRARY_FLAGS = #flags;
 
             unsafe fn ptr() -> #crate_name::DllHandle {
-                use #crate_name::once_cell::sync::OnceCell;
+                use #crate_name::DllCache;
 
-                static LIB_PTR: OnceCell<#crate_name::DllHandle> = OnceCell::new();
-                *LIB_PTR.get_or_init(|| Self::load())
+                static LIB_CACHE: DllCache = DllCache::new(|| unsafe { #dll_type_ident::load() });
+                *LIB_CACHE
             }
         }
     };
@@ -218,19 +218,11 @@ pub fn parse_extern_block(
                     const PROC_LPCSTR: #crate_name::LPCSTR = #proc_lpcstr;
 
                     unsafe fn proc() -> #crate_name::Result<Self::Sig, #crate_name::Error<#ident>> {
-                        use #crate_name::{
-                            Error,
-                            Option,
-                            Result,
-                            once_cell::sync::OnceCell,
-                        };
+                        use #crate_name::DllProcCache;
 
-                        static PROC_PTR: OnceCell<Result<
-                            unsafe #abi fn( #(#inputs),* ) #output,
-                            Error<#ident>,
-                        >> = OnceCell::new();
+                        static PROC_CACHE: DllProcCache<#ident> = DllProcCache::new(|| unsafe { #ident::load() });
 
-                        *PROC_PTR.get_or_init(|| Self::load())
+                        *PROC_CACHE
                     }
                 }
 
