@@ -1,11 +1,11 @@
-mod platform;
 #[doc(hidden)]
-pub use core::{self, option::Option, result::Result};
+pub mod macro_internal;
+mod platform;
+
 pub use platform::{flags, LPCSTR, LPCWSTR};
 pub use windows_dll_codegen::dll;
 
 use core::marker::PhantomData;
-use once_cell::sync::Lazy;
 
 #[derive(Debug, Clone)]
 pub enum Proc {
@@ -80,13 +80,6 @@ pub trait WindowsDllProc: Sized {
     }
 }
 
-// Copied MAKEINTRESOURCEA function from winapi so that it can be const
-#[doc(hidden)]
-#[inline]
-pub const fn make_int_resource_a(i: platform::WORD) -> LPCSTR {
-    i as platform::ULONG_PTR as _
-}
-
 #[derive(Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum ErrorKind {
@@ -137,6 +130,3 @@ impl<D: WindowsDllProc> core::fmt::Display for Error<D> {
     }
 }
 impl<D: WindowsDllProc> std::error::Error for Error<D> {}
-
-pub type DllCache = Lazy<DllHandle>;
-pub type DllProcCache<D> = Lazy<Result<<D as WindowsDllProc>::Sig, Error<D>>>;

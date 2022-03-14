@@ -104,7 +104,7 @@ pub fn parse_extern_block(
             const FLAGS: #crate_name::flags::LOAD_LIBRARY_FLAGS = #flags;
 
             unsafe fn ptr() -> #crate_name::DllHandle {
-                use #crate_name::DllCache;
+                use #crate_name::macro_internal::DllCache;
 
                 static LIB_CACHE: DllCache = DllCache::new(|| unsafe { #dll_type_ident::load() });
                 *LIB_CACHE
@@ -172,10 +172,10 @@ pub fn parse_extern_block(
             let outer_return_type = if fallible_attr {
                 match &output {
                     ReturnType::Default => {
-                        quote! { -> #crate_name::Result<(), #crate_name::Error<#ident>> }
+                        quote! { -> #crate_name::macro_internal::Result<(), #crate_name::Error<#ident>> }
                     }
                     ReturnType::Type(_, ty) => {
-                        quote! { -> #crate_name::Result<#ty, #crate_name::Error<#ident>> }
+                        quote! { -> #crate_name::macro_internal::Result<#ty, #crate_name::Error<#ident>> }
                     }
                 }
             } else {
@@ -217,8 +217,8 @@ pub fn parse_extern_block(
                     const PROC: #crate_name::Proc = #proc;
                     const PROC_LPCSTR: #crate_name::LPCSTR = #proc_lpcstr;
 
-                    unsafe fn proc() -> #crate_name::Result<Self::Sig, #crate_name::Error<#ident>> {
-                        use #crate_name::DllProcCache;
+                    unsafe fn proc() -> #crate_name::macro_internal::Result<Self::Sig, #crate_name::Error<#ident>> {
+                        use #crate_name::macro_internal::DllProcCache;
 
                         static PROC_CACHE: DllProcCache<#ident> = DllProcCache::new(|| unsafe { #ident::load() });
 
@@ -256,7 +256,9 @@ impl Link {
     }
     fn proc_lpcstr(&self, crate_name: &Ident) -> proc_macro2::TokenStream {
         match self {
-            Self::Ordinal(ordinal) => quote! { #crate_name::make_int_resource_a(#ordinal) },
+            Self::Ordinal(ordinal) => {
+                quote! { #crate_name::macro_internal::make_int_resource_a(#ordinal) }
+            }
             Self::Name(name) => {
                 let name_lpcstr = name.bytes().chain(once(0));
                 quote! { (&[#(#name_lpcstr),*]).as_ptr() as _ }
