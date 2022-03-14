@@ -54,6 +54,24 @@ impl<D> DllCache<D> {
             _phantom: PhantomData,
         }
     }
+    fn load_handle(&self) -> HMODULE {
+        HMODULE(self.handle.load(Ordering::SeqCst))
+    }
+    fn store_handle(&self, handle: HMODULE) {
+        self.handle.store(handle.0, Ordering::SeqCst);
+    }
+    pub unsafe fn free_lib(&self) -> bool {
+        let handle = self.load_handle();
+        if handle.is_invalid() {
+            false
+        } else {
+            let succeeded = FreeLibrary(handle);
+
+            self.store_handle(HMODULE(0));
+
+            succeeded.as_bool()
+        }
+    }
 }
 
 impl<D: WindowsDll> DllCache<D> {
@@ -77,14 +95,6 @@ impl<D: WindowsDll> DllCache<D> {
     }
 }
 
-pub(crate) unsafe fn load_lib<T: WindowsDll>() -> DllHandle {
-    let h_file = HANDLE(0);
-
-    DllHandle(LoadLibraryExW(PCWSTR(T::LIB_LPCWSTR), h_file, T::FLAGS))
-}
-pub(crate) unsafe fn free_lib(library: DllHandle) -> bool {
-    FreeLibrary(library.0).as_bool()
-}
 pub(crate) unsafe fn get_proc<T: WindowsDllProc>(library: DllHandle) -> Result<T::Sig, Error<T>> {
     GetProcAddress(library.0, PCSTR(T::PROC_LPCSTR))
         .map(|proc| *transmute::<_, &T::Sig>(&proc))

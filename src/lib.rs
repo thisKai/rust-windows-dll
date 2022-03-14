@@ -2,7 +2,7 @@
 pub mod macro_internal;
 mod platform;
 
-pub use platform::{flags, DllHandle, LPCSTR, LPCWSTR};
+pub use platform::{flags, DllCache, DllHandle, LPCSTR, LPCWSTR};
 pub use windows_dll_codegen::dll;
 
 use core::marker::PhantomData;
@@ -28,31 +28,26 @@ pub trait WindowsDll: Sized {
     const LIB_LPCWSTR: LPCWSTR;
     const FLAGS: flags::LOAD_LIBRARY_FLAGS;
 
-    unsafe fn ptr() -> DllHandle;
+    unsafe fn cache() -> &'static DllCache<Self>;
 
-    unsafe fn load() -> DllHandle {
-        platform::load_lib::<Self>()
-    }
-
-    unsafe fn free() -> bool {
-        let library = Self::ptr();
-        if library.is_null() {
-            false
-        } else {
-            platform::free_lib(library)
-        }
+    unsafe fn free() -> bool
+    where
+        Self: 'static,
+    {
+        let library = Self::cache();
+        library.free_lib()
     }
 }
 
 pub trait WindowsDllProc: Sized {
-    type Dll: WindowsDll;
+    type Dll: WindowsDll + 'static;
     type Sig: Copy;
     const PROC: Proc;
     const PROC_LPCSTR: LPCSTR;
 
     unsafe fn proc() -> Result<Self::Sig, Error<Self>>;
     unsafe fn load() -> Result<Self::Sig, Error<Self>> {
-        let library = Self::Dll::ptr();
+        let library = Self::Dll::cache().get();
 
         if library.is_null() {
             Err(Error::lib())

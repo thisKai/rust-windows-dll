@@ -103,11 +103,10 @@ pub fn parse_extern_block(
             const LIB_LPCWSTR: #crate_name::LPCWSTR = #wide_dll_name;
             const FLAGS: #crate_name::flags::LOAD_LIBRARY_FLAGS = #flags;
 
-            unsafe fn ptr() -> #crate_name::DllHandle {
-                use #crate_name::macro_internal::DllCache;
+            unsafe fn cache() -> &'static #crate_name::DllCache<Self> {
+                static LIB_CACHE: #crate_name::DllCache<#dll_type_ident> = #crate_name::DllCache::empty();
 
-                static LIB_CACHE: DllCache<#dll_type_ident> = DllCache::empty();
-                LIB_CACHE.get()
+                &LIB_CACHE
             }
         }
     };

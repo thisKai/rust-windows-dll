@@ -54,11 +54,29 @@ impl<D> DllCache<D> {
             _phantom: PhantomData,
         }
     }
+    fn load_handle(&self) -> HMODULE {
+        self.handle.load(Ordering::SeqCst)
+    }
+    fn store_handle(&self, handle: HMODULE) {
+        self.handle.store(handle, Ordering::SeqCst);
+    }
+    pub unsafe fn free_lib(&self) -> bool {
+        let handle = self.load_handle();
+        if handle.is_null() {
+            false
+        } else {
+            let succeeded = FreeLibrary(self.load_handle());
+
+            self.store_handle(ptr::null_mut());
+
+            succeeded == TRUE
+        }
+    }
 }
 
 impl<D: WindowsDll> DllCache<D> {
     pub unsafe fn get(&self) -> DllHandle {
-        let handle = self.handle.load(Ordering::SeqCst);
+        let handle = self.load_handle();
 
         let handle = if handle.is_null() {
             self.load_and_cache_lib()
@@ -71,21 +89,12 @@ impl<D: WindowsDll> DllCache<D> {
     unsafe fn load_and_cache_lib(&self) -> HMODULE {
         let handle = LoadLibraryExW(D::LIB_LPCWSTR, ptr::null_mut(), D::FLAGS);
 
-        self.handle.store(handle, Ordering::SeqCst);
+        self.store_handle(handle);
 
         handle
     }
 }
 
-pub(crate) unsafe fn load_lib<T: WindowsDll>() -> DllHandle {
-    let h_file = ptr::null_mut();
-
-    DllHandle(LoadLibraryExW(T::LIB_LPCWSTR, h_file, T::FLAGS))
-}
-pub(crate) unsafe fn free_lib(library: DllHandle) -> bool {
-    let succeeded = FreeLibrary(library.0);
-    succeeded == TRUE
-}
 pub(crate) unsafe fn get_proc<T: WindowsDllProc>(library: DllHandle) -> Result<T::Sig, Error<T>> {
     let proc = GetProcAddress(library.0, T::PROC_LPCSTR as _);
 
