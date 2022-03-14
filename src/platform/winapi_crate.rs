@@ -93,14 +93,15 @@ impl<D: WindowsDll> DllCache<D> {
 
         handle
     }
-}
-
-pub(crate) unsafe fn get_proc<T: WindowsDllProc>(library: DllHandle) -> Result<T::Sig, Error<T>> {
-    let proc = GetProcAddress(library.0, T::PROC_LPCSTR as _);
-
-    if proc.is_null() {
-        Err(Error::proc())
-    } else {
-        Ok(*transmute::<_, &T::Sig>(&proc))
+    pub(crate) unsafe fn get_proc<P: WindowsDllProc<Dll = D>>(&self) -> Result<P::Sig, Error<P>> {
+        let library = self.get();
+        if library.is_null() {
+            return Err(Error::lib());
+        }
+        let proc = GetProcAddress(library.0, P::PROC_LPCSTR as _);
+        if proc.is_null() {
+            return Err(Error::proc());
+        }
+        Ok(*transmute::<_, &P::Sig>(&proc))
     }
 }

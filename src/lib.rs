@@ -47,13 +47,7 @@ pub trait WindowsDllProc: Sized {
 
     unsafe fn proc() -> Result<Self::Sig, Error<Self>>;
     unsafe fn load() -> Result<Self::Sig, Error<Self>> {
-        let library = Self::Dll::cache().get();
-
-        if library.is_null() {
-            Err(Error::lib())
-        } else {
-            platform::get_proc::<Self>(library)
-        }
+        Self::Dll::cache().get_proc::<Self>()
     }
     unsafe fn exists() -> bool {
         Self::proc().is_ok()
