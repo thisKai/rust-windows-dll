@@ -6,7 +6,7 @@ use core::{
     sync::atomic::{AtomicIsize, Ordering},
 };
 
-pub(crate) use windows::Win32::Foundation::HINSTANCE as HMODULE;
+pub(crate) use windows::Win32::Foundation::HINSTANCE;
 use windows::{
     core::{PCSTR, PCWSTR},
     Win32::{
@@ -35,14 +35,6 @@ pub mod flags {
     };
 }
 
-#[derive(Clone, Copy)]
-pub struct DllHandle(HMODULE);
-impl DllHandle {
-    pub(crate) fn is_null(&self) -> bool {
-        self.0.is_invalid()
-    }
-}
-
 pub struct DllCache<D> {
     handle: AtomicIsize,
     _phantom: PhantomData<D>,
@@ -54,20 +46,20 @@ impl<D> DllCache<D> {
             _phantom: PhantomData,
         }
     }
-    fn load_handle(&self) -> HMODULE {
-        HMODULE(self.handle.load(Ordering::SeqCst))
+    fn load_handle(&self) -> HINSTANCE {
+        HINSTANCE(self.handle.load(Ordering::SeqCst))
     }
-    fn store_handle(&self, handle: HMODULE) {
+    fn store_handle(&self, handle: HINSTANCE) {
         self.handle.store(handle.0, Ordering::SeqCst);
     }
-    pub unsafe fn free_lib(&self) -> bool {
+    pub(crate) unsafe fn free_lib(&self) -> bool {
         let handle = self.load_handle();
         if handle.is_invalid() {
             false
         } else {
             let succeeded = FreeLibrary(handle);
 
-            self.store_handle(HMODULE(0));
+            self.store_handle(HINSTANCE(0));
 
             succeeded.as_bool()
         }
@@ -75,18 +67,18 @@ impl<D> DllCache<D> {
 }
 
 impl<D: WindowsDll> DllCache<D> {
-    pub unsafe fn get(&self) -> DllHandle {
+    unsafe fn get(&self) -> HINSTANCE {
         let handle = self.handle.load(Ordering::SeqCst);
 
         let handle = if handle == 0 {
             self.load_and_cache_lib()
         } else {
-            HMODULE(handle)
+            HINSTANCE(handle)
         };
 
-        DllHandle(handle)
+        handle
     }
-    unsafe fn load_and_cache_lib(&self) -> HMODULE {
+    unsafe fn load_and_cache_lib(&self) -> HINSTANCE {
         let handle = LoadLibraryExW(PCWSTR(D::LIB_LPCWSTR), HANDLE(0), D::FLAGS);
 
         self.handle.store(handle.0, Ordering::SeqCst);
@@ -95,10 +87,10 @@ impl<D: WindowsDll> DllCache<D> {
     }
     pub(crate) unsafe fn get_proc<P: WindowsDllProc<Dll = D>>(&self) -> Result<P::Sig, Error<P>> {
         let library = self.get();
-        if library.is_null() {
+        if library.is_invalid() {
             return Err(Error::lib());
         }
-        GetProcAddress(library.0, PCSTR(P::PROC_LPCSTR))
+        GetProcAddress(library, PCSTR(P::PROC_LPCSTR))
             .map(|proc| *transmute::<_, &P::Sig>(&proc))
             .ok_or_else(Error::proc)
     }

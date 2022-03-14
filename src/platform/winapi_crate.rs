@@ -33,16 +33,6 @@ pub mod flags {
     };
 }
 
-#[derive(Clone, Copy)]
-pub struct DllHandle(HMODULE);
-impl DllHandle {
-    pub(crate) fn is_null(&self) -> bool {
-        self.0.is_null()
-    }
-}
-unsafe impl Send for DllHandle {}
-unsafe impl Sync for DllHandle {}
-
 pub struct DllCache<D> {
     handle: AtomicPtr<HINSTANCE__>,
     _phantom: PhantomData<D>,
@@ -60,7 +50,7 @@ impl<D> DllCache<D> {
     fn store_handle(&self, handle: HMODULE) {
         self.handle.store(handle, Ordering::SeqCst);
     }
-    pub unsafe fn free_lib(&self) -> bool {
+    pub(crate) unsafe fn free_lib(&self) -> bool {
         let handle = self.load_handle();
         if handle.is_null() {
             false
@@ -75,7 +65,7 @@ impl<D> DllCache<D> {
 }
 
 impl<D: WindowsDll> DllCache<D> {
-    pub unsafe fn get(&self) -> DllHandle {
+    unsafe fn get(&self) -> HMODULE {
         let handle = self.load_handle();
 
         let handle = if handle.is_null() {
@@ -84,7 +74,7 @@ impl<D: WindowsDll> DllCache<D> {
             handle
         };
 
-        DllHandle(handle)
+        handle
     }
     unsafe fn load_and_cache_lib(&self) -> HMODULE {
         let handle = LoadLibraryExW(D::LIB_LPCWSTR, ptr::null_mut(), D::FLAGS);
@@ -98,7 +88,7 @@ impl<D: WindowsDll> DllCache<D> {
         if library.is_null() {
             return Err(Error::lib());
         }
-        let proc = GetProcAddress(library.0, P::PROC_LPCSTR as _);
+        let proc = GetProcAddress(library, P::PROC_LPCSTR as _);
         if proc.is_null() {
             return Err(Error::proc());
         }
