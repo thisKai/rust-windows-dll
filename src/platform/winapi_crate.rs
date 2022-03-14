@@ -1,4 +1,4 @@
-use crate::{DllHandle, Error, WindowsDll, WindowsDllProc};
+use crate::{Error, WindowsDll, WindowsDllProc};
 
 use core::{
     mem::transmute,
@@ -33,6 +33,16 @@ pub mod flags {
     };
 }
 
+#[derive(Clone, Copy)]
+pub struct DllHandle(HMODULE);
+impl DllHandle {
+    pub(crate) fn is_null(&self) -> bool {
+        self.0.is_null()
+    }
+}
+unsafe impl Send for DllHandle {}
+unsafe impl Sync for DllHandle {}
+
 pub struct DllCache<D> {
     handle: AtomicPtr<HINSTANCE__>,
     _phantom: PhantomData<D>,
@@ -41,7 +51,7 @@ impl<D> DllCache<D> {
     pub const fn empty() -> Self {
         Self {
             handle: AtomicPtr::new(ptr::null_mut()),
-            _phantom:PhantomData
+            _phantom: PhantomData,
         }
     }
 }

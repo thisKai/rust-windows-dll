@@ -1,12 +1,16 @@
-use crate::{DllHandle, Error, WindowsDll, WindowsDllProc};
+use crate::{Error, WindowsDll, WindowsDllProc};
 
-use core::{mem::transmute, sync::atomic::{Ordering, AtomicIsize}, marker::PhantomData};
+use core::{
+    marker::PhantomData,
+    mem::transmute,
+    sync::atomic::{AtomicIsize, Ordering},
+};
 
 pub(crate) use windows::Win32::Foundation::HINSTANCE as HMODULE;
 use windows::{
     core::{PCSTR, PCWSTR},
     Win32::{
-        Foundation::{HANDLE, },
+        Foundation::HANDLE,
         System::LibraryLoader::{FreeLibrary, GetProcAddress, LoadLibraryExW},
     },
 };
@@ -31,6 +35,14 @@ pub mod flags {
     };
 }
 
+#[derive(Clone, Copy)]
+pub struct DllHandle(HMODULE);
+impl DllHandle {
+    pub(crate) fn is_null(&self) -> bool {
+        self.0.is_invalid()
+    }
+}
+
 pub struct DllCache<D> {
     handle: AtomicIsize,
     _phantom: PhantomData<D>,
@@ -39,7 +51,7 @@ impl<D> DllCache<D> {
     pub const fn empty() -> Self {
         Self {
             handle: AtomicIsize::new(0),
-            _phantom:PhantomData
+            _phantom: PhantomData,
         }
     }
 }

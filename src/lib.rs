@@ -2,7 +2,7 @@
 pub mod macro_internal;
 mod platform;
 
-pub use platform::{flags, LPCSTR, LPCWSTR};
+pub use platform::{flags, DllHandle, LPCSTR, LPCWSTR};
 pub use windows_dll_codegen::dll;
 
 use core::marker::PhantomData;
@@ -21,21 +21,6 @@ impl core::fmt::Display for Proc {
         }
     }
 }
-
-#[derive(Clone, Copy)]
-pub struct DllHandle(platform::HMODULE);
-impl DllHandle {
-    #[cfg(feature = "winapi")]
-    fn is_null(&self) -> bool {
-        self.0.is_null()
-    }
-    #[cfg(feature = "windows")]
-    fn is_null(&self) -> bool {
-        self.0 .0 == 0
-    }
-}
-unsafe impl Send for DllHandle {}
-unsafe impl Sync for DllHandle {}
 
 pub trait WindowsDll: Sized {
     const LIB: &'static str;
