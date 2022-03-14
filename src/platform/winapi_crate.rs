@@ -1,6 +1,11 @@
 use crate::{DllHandle, Error, WindowsDll, WindowsDllProc};
 
-use core::mem::transmute;
+use core::{
+    mem::transmute,
+    ptr,
+    sync::atomic::{AtomicPtr, Ordering},
+};
+use std::marker::PhantomData;
 
 pub(crate) use winapi::shared::{
     basetsd::ULONG_PTR,
@@ -8,7 +13,7 @@ pub(crate) use winapi::shared::{
 };
 pub use winapi::um::winnt::{LPCSTR, LPCWSTR};
 use winapi::{
-    shared::minwindef::TRUE,
+    shared::minwindef::{HINSTANCE__, TRUE},
     um::libloaderapi::{FreeLibrary, GetProcAddress, LoadLibraryExW},
 };
 
@@ -28,8 +33,42 @@ pub mod flags {
     };
 }
 
+pub struct DllCache<D> {
+    handle: AtomicPtr<HINSTANCE__>,
+    _phantom: PhantomData<D>,
+}
+impl<D> DllCache<D> {
+    pub const fn empty() -> Self {
+        Self {
+            handle: AtomicPtr::new(ptr::null_mut()),
+            _phantom:PhantomData
+        }
+    }
+}
+
+impl<D: WindowsDll> DllCache<D> {
+    pub unsafe fn get(&self) -> DllHandle {
+        let handle = self.handle.load(Ordering::SeqCst);
+
+        let handle = if handle.is_null() {
+            self.load_and_cache_lib()
+        } else {
+            handle
+        };
+
+        DllHandle(handle)
+    }
+    unsafe fn load_and_cache_lib(&self) -> HMODULE {
+        let handle = LoadLibraryExW(D::LIB_LPCWSTR, ptr::null_mut(), D::FLAGS);
+
+        self.handle.store(handle, Ordering::SeqCst);
+
+        handle
+    }
+}
+
 pub(crate) unsafe fn load_lib<T: WindowsDll>() -> DllHandle {
-    let h_file = std::ptr::null_mut();
+    let h_file = ptr::null_mut();
 
     DllHandle(LoadLibraryExW(T::LIB_LPCWSTR, h_file, T::FLAGS))
 }

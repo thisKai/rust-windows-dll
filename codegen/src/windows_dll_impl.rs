@@ -106,8 +106,8 @@ pub fn parse_extern_block(
             unsafe fn ptr() -> #crate_name::DllHandle {
                 use #crate_name::macro_internal::DllCache;
 
-                static LIB_CACHE: DllCache = DllCache::new(|| unsafe { #dll_type_ident::load() });
-                *LIB_CACHE
+                static LIB_CACHE: DllCache<#dll_type_ident> = DllCache::empty();
+                LIB_CACHE.get()
             }
         }
     };

@@ -1,18 +1,18 @@
 use crate::{DllHandle, Error, WindowsDll, WindowsDllProc};
 
-use core::mem::transmute;
+use core::{mem::transmute, sync::atomic::{Ordering, AtomicIsize}, marker::PhantomData};
 
 pub(crate) use windows::Win32::Foundation::HINSTANCE as HMODULE;
 use windows::{
     core::{PCSTR, PCWSTR},
     Win32::{
-        Foundation::HANDLE,
+        Foundation::{HANDLE, },
         System::LibraryLoader::{FreeLibrary, GetProcAddress, LoadLibraryExW},
     },
 };
 
+#[allow(non_camel_case_types)]
 pub(crate) type ULONG_PTR = usize;
-pub(crate) type DWORD = u32;
 pub(crate) type WORD = u16;
 pub type LPCWSTR = *const u16;
 pub type LPCSTR = *const u8;
@@ -29,6 +29,40 @@ pub mod flags {
         LOAD_LIBRARY_SEARCH_SYSTEM32, LOAD_LIBRARY_SEARCH_SYSTEM32_NO_FORWARDER,
         LOAD_LIBRARY_SEARCH_USER_DIRS, LOAD_WITH_ALTERED_SEARCH_PATH,
     };
+}
+
+pub struct DllCache<D> {
+    handle: AtomicIsize,
+    _phantom: PhantomData<D>,
+}
+impl<D> DllCache<D> {
+    pub const fn empty() -> Self {
+        Self {
+            handle: AtomicIsize::new(0),
+            _phantom:PhantomData
+        }
+    }
+}
+
+impl<D: WindowsDll> DllCache<D> {
+    pub unsafe fn get(&self) -> DllHandle {
+        let handle = self.handle.load(Ordering::SeqCst);
+
+        let handle = if handle == 0 {
+            self.load_and_cache_lib()
+        } else {
+            HMODULE(handle)
+        };
+
+        DllHandle(handle)
+    }
+    unsafe fn load_and_cache_lib(&self) -> HMODULE {
+        let handle = LoadLibraryExW(PCWSTR(D::LIB_LPCWSTR), HANDLE(0), D::FLAGS);
+
+        self.handle.store(handle.0, Ordering::SeqCst);
+
+        handle
+    }
 }
 
 pub(crate) unsafe fn load_lib<T: WindowsDll>() -> DllHandle {
