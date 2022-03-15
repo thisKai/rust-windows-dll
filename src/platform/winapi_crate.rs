@@ -55,9 +55,9 @@ impl<D> DllCache<D> {
         if handle.is_null() {
             false
         } else {
-            let succeeded = FreeLibrary(self.load_handle());
-
             self.store_handle(ptr::null_mut());
+
+            let succeeded = FreeLibrary(self.load_handle());
 
             succeeded == TRUE
         }

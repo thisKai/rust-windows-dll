@@ -57,9 +57,9 @@ impl<D> DllCache<D> {
         if handle.is_invalid() {
             false
         } else {
-            let succeeded = FreeLibrary(handle);
-
             self.store_handle(HINSTANCE(0));
+
+            let succeeded = FreeLibrary(handle);
 
             succeeded.as_bool()
         }
