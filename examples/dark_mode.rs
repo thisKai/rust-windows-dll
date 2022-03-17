@@ -58,10 +58,10 @@ static WIN10_BUILD: Lazy<Option<DWORD>> = Lazy::new(|| {
         dwPlatformId: ULONG,
         szCSDVersion: [WCHAR; 128],
     }
-    if !RtlGetVersion::exists() {
-        return None;
-    }
     unsafe {
+        if !RtlGetVersion::exists() {
+            return None;
+        }
         let mut version_info = OSVERSIONINFOW {
             dwOSVersionInfoSize: 0,
             dwMajorVersion: 0,
@@ -110,7 +110,7 @@ fn dark_dwm_decorations(hwnd: HWND, enable_dark_mode: bool) -> bool {
         ) -> BOOL;
     }
 
-    if *DARK_MODE_SUPPORTED && SetWindowCompositionAttribute::exists() {
+    if *DARK_MODE_SUPPORTED && unsafe { SetWindowCompositionAttribute::exists() } {
         unsafe {
             let mut is_dark_mode_bigbool = enable_dark_mode as BOOL;
             let mut data = WINDOWCOMPOSITIONATTRIBDATA {

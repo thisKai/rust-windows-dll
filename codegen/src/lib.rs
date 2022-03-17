@@ -60,8 +60,10 @@ use windows_dll_impl::parse_windows_dll;
 /// By default the generated functions panic when the dll function cannot be loaded
 /// you can check if they exist by calling `function_name::exists()` which returns a `bool`, e.g:
 /// ```
-/// if allow_dark_mode_for_window::exists() {
-///     allow_dark_mode_for_window(hwnd, allow)
+/// unsafe {
+///     if allow_dark_mode_for_window::exists() {
+///         allow_dark_mode_for_window(hwnd, allow)
+///     }
 /// }
 /// ```
 ///

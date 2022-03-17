@@ -205,8 +205,8 @@ pub fn parse_extern_block(
                 #[allow(non_camel_case_types)]
                 #vis enum #ident {}
                 impl #ident {
-                    pub fn exists() -> bool {
-                        unsafe { <Self as #crate_name::WindowsDllProc>::exists() }
+                    pub unsafe fn exists() -> bool {
+                        <Self as #crate_name::WindowsDllProc>::exists()
                     }
                 }
 

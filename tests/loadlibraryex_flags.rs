@@ -26,11 +26,11 @@ extern "system" {
 #[test]
 fn assert_args_passed() {
     assert!(
-        bcrypt_add_context_function::exists(),
+        unsafe { bcrypt_add_context_function::exists() },
         "Didn't find bcrypt.dll in system dir..."
     );
     assert!(
-        !fw_add_firewall_rule::exists(),
+        unsafe { !fw_add_firewall_rule::exists() },
         "Found firewallapi.dll in application dir..."
     );
 }

@@ -13,7 +13,7 @@ fn function_exists() {
         ) -> BOOL;
     }
 
-    dbg!(SetWindowCompositionAttribute::exists());
+    dbg!(unsafe { SetWindowCompositionAttribute::exists() });
 }
 
 #[test]
@@ -31,7 +31,7 @@ fn function_exists_module() {
     }
     use user32::SetWindowCompositionAttribute;
 
-    dbg!(SetWindowCompositionAttribute::exists());
+    dbg!(unsafe { SetWindowCompositionAttribute::exists() });
 }
 
 #[allow(non_snake_case)]
