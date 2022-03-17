@@ -68,12 +68,12 @@ impl<D> DllCache<D> {
 
 impl<D: WindowsDll> DllCache<D> {
     unsafe fn get(&self) -> HINSTANCE {
-        let handle = self.handle.load(Ordering::SeqCst);
+        let handle = self.load_handle();
 
-        let handle = if handle == 0 {
+        let handle = if handle.0 == 0 {
             self.load_and_cache_lib()
         } else {
-            HINSTANCE(handle)
+            handle
         };
 
         handle
@@ -81,7 +81,7 @@ impl<D: WindowsDll> DllCache<D> {
     unsafe fn load_and_cache_lib(&self) -> HINSTANCE {
         let handle = LoadLibraryExW(PCWSTR(D::LIB_LPCWSTR), HANDLE(0), D::FLAGS);
 
-        self.handle.store(handle.0, Ordering::SeqCst);
+        self.store_handle(handle);
 
         handle
     }
