@@ -219,7 +219,9 @@ pub fn parse_extern_block(
                     unsafe fn proc() -> #crate_name::macro_internal::Result<Self::Sig, #crate_name::Error<#ident>> {
                         use #crate_name::macro_internal::DllProcCache;
 
-                        static PROC_CACHE: DllProcCache<#ident> = DllProcCache::new(|| unsafe { #ident::load() });
+                        static PROC_CACHE: DllProcCache<#ident> = DllProcCache::new(|| unsafe {
+                            <#dll_type_ident as #crate_name::WindowsDll>::cache().get_proc::<#ident>()
+                        });
 
                         *PROC_CACHE
                     }

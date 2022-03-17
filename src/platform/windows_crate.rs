@@ -85,7 +85,7 @@ impl<D: WindowsDll> DllCache<D> {
 
         handle
     }
-    pub(crate) unsafe fn get_proc<P: WindowsDllProc<Dll = D>>(&self) -> Result<P::Sig, Error<P>> {
+    pub unsafe fn get_proc<P: WindowsDllProc<Dll = D>>(&self) -> Result<P::Sig, Error<P>> {
         let library = self.get();
         if library.is_invalid() {
             return Err(Error::lib());

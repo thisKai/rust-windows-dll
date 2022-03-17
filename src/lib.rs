@@ -46,9 +46,6 @@ pub trait WindowsDllProc: Sized {
     const PROC_LPCSTR: LPCSTR;
 
     unsafe fn proc() -> Result<Self::Sig, Error<Self>>;
-    unsafe fn load() -> Result<Self::Sig, Error<Self>> {
-        Self::Dll::cache().get_proc::<Self>()
-    }
     unsafe fn exists() -> bool {
         Self::proc().is_ok()
     }
