@@ -95,10 +95,14 @@ pub fn parse_extern_block(
         quote! { #crate_name::flags::NO_FLAGS }
     };
 
+    let ItemForeignMod { abi, items, .. } = parse(input)?;
+
+    let len = items.len();
     let dll_impl = quote! {
         #[allow(non_camel_case_types)]
         pub enum #dll_type_ident {}
         impl #crate_name::WindowsDll for #dll_type_ident {
+            const LEN: usize = #len;
             const LIB: &'static str = #dll_name;
             const LIB_LPCWSTR: #crate_name::LPCWSTR = #wide_dll_name;
             const FLAGS: #crate_name::flags::LOAD_LIBRARY_FLAGS = #flags;
@@ -111,9 +115,7 @@ pub fn parse_extern_block(
         }
     };
 
-    let ItemForeignMod { abi, items, .. } = parse(input)?;
-
-    let functions = items.into_iter().map(|i| match i {
+    let functions = items.into_iter().enumerate().map(|(index, item)| match item {
         ForeignItem::Fn(ForeignItemFn {
             attrs, vis, sig, ..
         }) => {
@@ -213,17 +215,12 @@ pub fn parse_extern_block(
                 impl #crate_name::WindowsDllProc for #ident {
                     type Dll = #dll_type_ident;
                     type Sig = unsafe #abi fn( #(#inputs),* ) #output;
+                    const CACHE_INDEX: usize = #index;
                     const PROC: #crate_name::Proc = #proc;
                     const PROC_LPCSTR: #crate_name::LPCSTR = #proc_lpcstr;
 
                     unsafe fn proc() -> #crate_name::macro_internal::Result<Self::Sig, #crate_name::Error<#ident>> {
-                        use #crate_name::macro_internal::DllProcCache;
-
-                        static PROC_CACHE: DllProcCache<#ident> = DllProcCache::new(|| unsafe {
-                            <#dll_type_ident as #crate_name::WindowsDll>::cache().get_proc::<#ident>()
-                        });
-
-                        *PROC_CACHE
+                        <Self::Dll as #crate_name::WindowsDll>::cache().get_proc::<#ident>()
                     }
                 }
 

@@ -23,8 +23,8 @@ impl core::fmt::Display for Proc {
 }
 
 pub trait WindowsDll: Sized {
+    const LEN: usize;
     const LIB: &'static str;
-
     const LIB_LPCWSTR: LPCWSTR;
     const FLAGS: flags::LOAD_LIBRARY_FLAGS;
 
@@ -42,6 +42,7 @@ pub trait WindowsDll: Sized {
 pub trait WindowsDllProc: Sized {
     type Dll: WindowsDll + 'static;
     type Sig: Copy;
+    const CACHE_INDEX: usize;
     const PROC: Proc;
     const PROC_LPCSTR: LPCSTR;
 
