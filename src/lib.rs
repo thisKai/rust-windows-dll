@@ -101,3 +101,11 @@ impl<D: WindowsDllProc> core::fmt::Display for Error<D> {
     }
 }
 impl<D: WindowsDllProc> std::error::Error for Error<D> {}
+impl<D: WindowsDllProc> From<ErrorKind> for Error<D> {
+    fn from(kind: ErrorKind) -> Self {
+        Self {
+            kind,
+            _dll: PhantomData,
+        }
+    }
+}
