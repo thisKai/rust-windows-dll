@@ -45,7 +45,7 @@ features = [
 ]
 
 [dev-dependencies]
-minifb = "0.19"
+minifb = "0.20"
 
 
 [package.metadata.docs.rs]
