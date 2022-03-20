@@ -101,6 +101,12 @@ pub fn parse_extern_block(
     let dll_impl = quote! {
         #[allow(non_camel_case_types)]
         pub enum #dll_type_ident {}
+        impl #dll_type_ident {
+            pub unsafe fn exists() -> bool {
+                <Self as #crate_name::WindowsDll>::exists()
+            }
+        }
+
         impl #crate_name::WindowsDll for #dll_type_ident {
             const LEN: usize = #len;
             const LIB: &'static str = #dll_name;

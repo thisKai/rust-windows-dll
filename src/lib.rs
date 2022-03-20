@@ -31,6 +31,13 @@ pub trait WindowsDll: Sized {
 
     unsafe fn cache() -> &'static DllCache<Self>;
 
+    unsafe fn exists() -> bool
+    where
+        Self: 'static,
+    {
+        Self::cache().lib_exists()
+    }
+
     unsafe fn free() -> bool
     where
         Self: 'static,

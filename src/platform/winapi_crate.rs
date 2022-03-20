@@ -72,6 +72,9 @@ impl<D> DllCache<D> {
 }
 
 impl<D: WindowsDll> DllCache<D> {
+    pub(crate) unsafe fn lib_exists(&self) -> bool {
+        !self.get().is_null()
+    }
     unsafe fn get(&self) -> HMODULE {
         let handle = self.load_handle();
 
