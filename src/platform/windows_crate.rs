@@ -37,6 +37,7 @@ pub mod flags {
     };
 }
 
+#[doc(hidden)]
 pub struct DllCache<D> {
     handle: AtomicIsize,
     procs: OnceCell<Vec<DllProcCache>>,

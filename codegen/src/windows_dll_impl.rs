@@ -104,11 +104,11 @@ pub fn parse_extern_block(
         impl #crate_name::WindowsDll for #dll_type_ident {
             const LEN: usize = #len;
             const LIB: &'static str = #dll_name;
-            const LIB_LPCWSTR: #crate_name::LPCWSTR = #wide_dll_name;
+            const LIB_LPCWSTR: #crate_name::macro_internal::LPCWSTR = #wide_dll_name;
             const FLAGS: #crate_name::flags::LOAD_LIBRARY_FLAGS = #flags;
 
-            unsafe fn cache() -> &'static #crate_name::DllCache<Self> {
-                static LIB_CACHE: #crate_name::DllCache<#dll_type_ident> = #crate_name::DllCache::empty();
+            unsafe fn cache() -> &'static #crate_name::macro_internal::DllCache<Self> {
+                static LIB_CACHE: #crate_name::macro_internal::DllCache<#dll_type_ident> = #crate_name::macro_internal::DllCache::empty();
 
                 &LIB_CACHE
             }
@@ -217,7 +217,7 @@ pub fn parse_extern_block(
                     type Sig = unsafe #abi fn( #(#inputs),* ) #output;
                     const CACHE_INDEX: usize = #index;
                     const PROC: #crate_name::Proc = #proc;
-                    const PROC_LPCSTR: #crate_name::LPCSTR = #proc_lpcstr;
+                    const PROC_LPCSTR: #crate_name::macro_internal::LPCSTR = #proc_lpcstr;
 
                     unsafe fn proc() -> #crate_name::macro_internal::Result<Self::Sig, #crate_name::Error<#ident>> {
                         <Self::Dll as #crate_name::WindowsDll>::cache().get_proc::<#ident>()

@@ -34,6 +34,7 @@ pub mod flags {
     };
 }
 
+#[doc(hidden)]
 pub struct DllCache<D> {
     handle: AtomicPtr<HINSTANCE__>,
     procs: OnceCell<Vec<DllProcCache>>,

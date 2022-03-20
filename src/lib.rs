@@ -2,7 +2,8 @@
 pub mod macro_internal;
 mod platform;
 
-pub use platform::{flags, DllCache, LPCSTR, LPCWSTR};
+pub use platform::flags;
+use platform::{DllCache, LPCSTR, LPCWSTR};
 pub use windows_dll_codegen::dll;
 
 use core::marker::PhantomData;
