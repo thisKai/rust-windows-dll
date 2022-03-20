@@ -25,32 +25,24 @@ impl core::fmt::Display for Proc {
     }
 }
 
-pub trait WindowsDll: Sized {
+pub trait WindowsDll: Sized + 'static {
     const LEN: usize;
     const LIB: &'static str;
     const LIB_LPCWSTR: LPCWSTR;
     const FLAGS: flags::LOAD_LIBRARY_FLAGS;
 
     unsafe fn cache() -> &'static DllCache<Self>;
-
-    unsafe fn exists() -> bool
-    where
-        Self: 'static,
-    {
+    unsafe fn exists() -> bool {
         Self::cache().lib_exists()
     }
-
-    unsafe fn free() -> bool
-    where
-        Self: 'static,
-    {
+    unsafe fn free() -> bool {
         let library = Self::cache();
         library.free_lib()
     }
 }
 
 pub trait WindowsDllProc: Sized {
-    type Dll: WindowsDll + 'static;
+    type Dll: WindowsDll;
     type Sig: Copy;
     const CACHE_INDEX: usize;
     const PROC: Proc;
