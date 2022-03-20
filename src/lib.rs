@@ -1,9 +1,11 @@
+mod cache;
 #[doc(hidden)]
 pub mod macro_internal;
 mod platform;
 
+use cache::DllCache;
 pub use platform::flags;
-use platform::{DllCache, LPCSTR, LPCWSTR};
+use platform::{LPCSTR, LPCWSTR};
 pub use windows_dll_codegen::dll;
 
 use core::marker::PhantomData;

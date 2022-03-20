@@ -1,11 +1,7 @@
-use crate::{Error, ErrorKind, WindowsDll, WindowsDllProc};
-
 use core::{
-    marker::PhantomData,
     mem::transmute,
     sync::atomic::{AtomicIsize, AtomicUsize, Ordering},
 };
-use once_cell::sync::OnceCell;
 
 pub(crate) use windows::Win32::Foundation::HINSTANCE;
 use windows::{
@@ -37,104 +33,67 @@ pub mod flags {
     };
 }
 
-#[doc(hidden)]
-pub struct DllCache<D> {
-    handle: AtomicIsize,
-    procs: OnceCell<Vec<DllProcCache>>,
-    _phantom: PhantomData<D>,
-}
-impl<D> DllCache<D> {
-    pub const fn empty() -> Self {
-        Self {
-            handle: AtomicIsize::new(0),
-            procs: OnceCell::new(),
-            _phantom: PhantomData,
-        }
+#[repr(transparent)]
+pub(crate) struct AtomicDllHandle(AtomicIsize);
+impl AtomicDllHandle {
+    pub(crate) const fn empty() -> Self {
+        Self(AtomicIsize::new(0))
     }
-    fn load_handle(&self) -> HINSTANCE {
-        HINSTANCE(self.handle.load(Ordering::SeqCst))
+    pub(crate) fn load(&self) -> DllHandle {
+        DllHandle(HINSTANCE(self.0.load(Ordering::SeqCst)))
     }
-    fn store_handle(&self, handle: HINSTANCE) {
-        self.handle.store(handle.0, Ordering::SeqCst);
+    pub(crate) fn store(&self, handle: DllHandle) {
+        self.0.store(handle.0 .0, Ordering::SeqCst);
     }
-    pub(crate) unsafe fn free_lib(&self) -> bool {
-        let handle = self.load_handle();
-        if handle.is_invalid() {
-            false
-        } else {
-            self.store_handle(HINSTANCE(0));
-            for proc in self.procs.get().into_iter().flatten() {
-                proc.store_ptr(None);
-            }
-
-            let succeeded = FreeLibrary(handle);
-
-            succeeded.as_bool()
-        }
+    pub(crate) fn clear(&self) {
+        self.0.store(0, Ordering::SeqCst);
     }
 }
 
-impl<D: WindowsDll> DllCache<D> {
-    pub(crate) unsafe fn lib_exists(&self) -> bool {
-        !self.get().is_invalid()
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+pub(crate) struct DllHandle(HINSTANCE);
+impl DllHandle {
+    pub(crate) unsafe fn load(lib_file_name: LPCWSTR, flags: flags::LOAD_LIBRARY_FLAGS) -> Self {
+        Self(LoadLibraryExW(PCWSTR(lib_file_name), HANDLE(0), flags))
     }
-    unsafe fn get(&self) -> HINSTANCE {
-        let handle = self.load_handle();
-
-        let handle = if handle.0 == 0 {
-            self.load_and_cache_lib()
-        } else {
-            handle
-        };
-
-        handle
+    pub(crate) fn is_invalid(&self) -> bool {
+        self.0.is_invalid()
     }
-    unsafe fn load_and_cache_lib(&self) -> HINSTANCE {
-        let handle = LoadLibraryExW(PCWSTR(D::LIB_LPCWSTR), HANDLE(0), D::FLAGS);
+    pub(crate) unsafe fn free(self) -> bool {
+        let succeeded = FreeLibrary(self.0);
 
-        self.store_handle(handle);
-        self.procs.get_or_init(|| {
-            let mut procs = Vec::with_capacity(D::LEN);
-            for _ in 0..D::LEN {
-                procs.push(DllProcCache::empty());
-            }
-            procs
-        });
-
-        handle
+        succeeded.as_bool()
     }
-    unsafe fn get_proc_ptr(
-        &self,
-        name: LPCSTR,
-        cache_index: usize,
-    ) -> Result<NonNullFarProc, ErrorKind> {
-        let library = self.get();
-        if library.is_invalid() {
-            return Err(ErrorKind::Lib);
-        }
-
-        let cached_proc = &self.procs.get().unwrap()[cache_index];
-        let cached_proc_ptr = cached_proc.load_ptr();
-
-        cached_proc_ptr
-            .or_else(|| GetProcAddress(library, PCSTR(name)))
-            .ok_or(ErrorKind::Proc)
-    }
-    pub unsafe fn get_proc<P: WindowsDllProc<Dll = D>>(&self) -> Result<P::Sig, Error<P>> {
-        let proc = self.get_proc_ptr(P::PROC_LPCSTR, P::CACHE_INDEX)?;
-        Ok(*transmute::<_, &P::Sig>(&proc))
+    pub(crate) unsafe fn get_proc(&self, name: LPCSTR) -> Option<DllProcPtr> {
+        DllProcPtr::new(GetProcAddress(self.0, PCSTR(name)))
     }
 }
 
-struct DllProcCache(AtomicUsize);
-impl DllProcCache {
-    const fn empty() -> Self {
+#[repr(transparent)]
+pub(crate) struct AtomicDllProcPtr(AtomicUsize);
+impl AtomicDllProcPtr {
+    pub(crate) const fn empty() -> Self {
         Self(AtomicUsize::new(0))
     }
-    unsafe fn load_ptr(&self) -> FARPROC {
-        transmute(self.0.load(Ordering::SeqCst))
+    pub(crate) unsafe fn load(&self) -> Option<DllProcPtr> {
+        DllProcPtr::new(transmute(self.0.load(Ordering::SeqCst)))
     }
-    unsafe fn store_ptr(&self, handle: FARPROC) {
-        self.0.store(transmute(handle), Ordering::SeqCst);
+    pub(crate) unsafe fn store(&self, handle: Option<DllProcPtr>) {
+        self.0.store(
+            handle.map(|proc| transmute(proc)).unwrap_or(0),
+            Ordering::SeqCst,
+        );
+    }
+}
+
+#[repr(transparent)]
+pub(crate) struct DllProcPtr(NonNullFarProc);
+impl DllProcPtr {
+    fn new(proc: FARPROC) -> Option<Self> {
+        proc.map(DllProcPtr)
+    }
+    pub(crate) unsafe fn transmute<T: Copy>(self) -> T {
+        *transmute::<_, &T>(&self.0)
     }
 }
