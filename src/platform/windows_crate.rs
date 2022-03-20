@@ -99,7 +99,7 @@ impl<D: WindowsDll> DllCache<D> {
 
         handle
     }
-    pub unsafe fn get_proc_ptr(
+    unsafe fn get_proc_ptr(
         &self,
         name: LPCSTR,
         cache_index: usize,
