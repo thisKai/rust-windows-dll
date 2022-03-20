@@ -1,9 +1,6 @@
-use crate::{platform, Error, WindowsDllProc, LPCSTR};
+use crate::{platform, LPCSTR};
 pub use core::{self, option::Option, result::Result};
-use once_cell::sync::Lazy;
 pub use platform::DllCache;
-
-pub type DllProcCache<D> = Lazy<Result<<D as WindowsDllProc>::Sig, Error<D>>>;
 
 // Copied MAKEINTRESOURCEA function from winapi so that it can be const
 #[inline]
