@@ -1,12 +1,12 @@
 use crate::{Error, ErrorKind, WindowsDll, WindowsDllProc};
 
 use core::{
+    marker::PhantomData,
     mem::transmute,
     ptr,
     sync::atomic::{AtomicPtr, Ordering},
 };
 use once_cell::sync::OnceCell;
-use std::marker::PhantomData;
 
 pub(crate) use winapi::shared::{
     basetsd::ULONG_PTR,
