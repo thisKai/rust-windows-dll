@@ -3,6 +3,7 @@ mod cache;
 pub mod macro_internal;
 mod platform;
 
+#[doc = include_str!("../macro.md")]
 pub use windows_dll_codegen::dll;
 
 pub use platform::flags;
