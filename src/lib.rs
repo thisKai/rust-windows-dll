@@ -3,11 +3,12 @@ mod cache;
 pub mod macro_internal;
 mod platform;
 
-use cache::DllCache;
-pub use platform::flags;
-use platform::{LPCSTR, LPCWSTR};
 pub use windows_dll_codegen::dll;
 
+pub use platform::flags;
+
+use cache::DllCache;
+use platform::{LPCSTR, LPCWSTR};
 use core::marker::PhantomData;
 
 pub trait WindowsDll: Sized + 'static {
