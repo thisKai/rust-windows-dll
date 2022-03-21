@@ -1,7 +1,7 @@
 # Dynamically load functions from a windows dll
 
 Works on extern blocks containing only functions, e.g:
-```
+```rust
 #[dll("user32.dll")]
 extern "system" {
     #[allow(non_snake_case)]
@@ -9,14 +9,14 @@ extern "system" {
 }
 ```
 The `.dll` file extension can be omitted if the dll name has no path, e.g
-```
+```rust
 #[dll("user32")]
 extern "system" {
     ...
 }
 ```
 if the dll name is a valid rust identifier, you can also omit the quotes, e.g:
-```
+```rust
 #[dll(user32)]
 extern "system" {
     ...
@@ -30,7 +30,7 @@ which dynamically loads the original function from the dll.
 If you need to give the rust function a different name
 you can manually specify the dll symbol to load,
 Just put the dll symbol name in a **`#[link_name]`** attribute, e.g:
-```
+```rust
 #[dll(user32)]
 extern "system" {
     #[link_name = "SetWindowCompositionAttribute"]
@@ -41,7 +41,7 @@ extern "system" {
 ## Ordinal exports
 If you need to load a function that is exported by ordinal
 you can put the ordinal in a **`#[link_ordinal]`** attribute, e.g:
-```
+```rust
 #[dll(uxtheme)]
 extern "system" {
     #[link_ordinal = 133]
@@ -52,7 +52,7 @@ extern "system" {
 ## Error handling
 By default the generated functions panic when the dll function cannot be loaded
 you can check if they exist by calling `function_name::exists()` which returns a `bool`, e.g:
-```
+```rust
 unsafe {
     if allow_dark_mode_for_window::exists() {
         allow_dark_mode_for_window(hwnd, allow)
@@ -63,7 +63,7 @@ unsafe {
 You can also generate a wrapper function which returns a `Result<T, windows_dll::Error<function_name>>`
 To better integrate with the **`?`** operator, Just put a **`#[fallible]`** attribute
 on the function declaration, e.g:
-```
+```rust
 #[dll(user32)]
 extern "system" {
     #[allow(non_snake_case)]
@@ -82,7 +82,7 @@ This library uses the Win32 API function
 [LoadLibraryExW](https://docs.microsoft.com/en-us/windows/win32/api/libloaderapi/nf-libloaderapi-loadlibraryexw)
 internally. You can pass flags to the dwFlags parameter
 by passing a second argument to the **`#[dll]`** attribute, e.g
-```
+```rust
 #[dll(bcrypt, LOAD_LIBRARY_SEARCH_SYSTEM32)]
 extern "system" {
     #[link_name = "BCryptAddContextFunction"]
