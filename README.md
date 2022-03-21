@@ -24,7 +24,7 @@ struct OSVERSIONINFOW {
     szCSDVersion: [WCHAR; 128],
 }
 
-#[dll("ntdll.dll")]
+#[dll(ntdll)]
 extern "system" {
     #[allow(non_snake_case)]
     fn RtlGetVersion(lpVersionInformation: *mut OSVERSIONINFOW) -> NTSTATUS;
@@ -55,7 +55,7 @@ fn os_version_info() -> OSVERSIONINFOW {
 
 ### Return a result to determine whether the function can be retrieved
 ```rust
-#[dll("ntdll.dll")]
+#[dll(ntdll)]
 extern "system" {
     #[allow(non_snake_case)]
     #[fallible]
@@ -86,7 +86,7 @@ fn os_version_info() -> Result<OSVERSIONINFOW, windows_dll::Error> {
 
 ### Give the rust wrapper a different name to the dll export
 ```rust
-#[dll("ntdll.dll")]
+#[dll(ntdll)]
 extern "system" {
     #[link_name = "RtlGetVersion"]
     fn rtl_get_version(lp_version_information: *mut OSVERSIONINFOW) -> NTSTATUS;
@@ -95,7 +95,7 @@ extern "system" {
 
 ### Use a dll export without a name
 ```rust
-#[dll("uxtheme.dll")]
+#[dll(uxtheme)]
 extern "system" {
     #[link_ordinal = 133]
     fn allow_dark_mode_for_window(hwnd: HWND, allow: BOOL) -> BOOL;
@@ -104,7 +104,7 @@ extern "system" {
 
 ### Check whether a function exists
 ```rust
-#[dll("ntdll.dll")]
+#[dll(ntdll)]
 extern "system" {
     #[link_name = "RtlGetVersion"]
     fn rtl_get_version(lp_version_information: *mut OSVERSIONINFOW) -> NTSTATUS;
@@ -119,7 +119,7 @@ unsafe fn rtl_get_version_exists() -> bool {
 
 ```rust
 use windows_dll::*;
-#[dll("ntdll.dll", LOAD_LIBRARY_SEARCH_SYSTEM32)]
+#[dll(ntdll, LOAD_LIBRARY_SEARCH_SYSTEM32)]
 extern "system" {
     #[link_name = "RtlGetVersion"]
     fn rtl_get_version(lp_version_information: *mut OSVERSIONINFOW) -> NTSTATUS;
