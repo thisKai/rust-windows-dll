@@ -61,11 +61,11 @@ pub enum ErrorKind {
     Proc,
 }
 
-pub struct Error<D: WindowsDllProc> {
+pub struct Error<D> {
     pub kind: ErrorKind,
     _dll: PhantomData<D>,
 }
-impl<D: WindowsDllProc> Error<D> {
+impl<D> Error<D> {
     pub fn lib() -> Self {
         Self {
             kind: ErrorKind::Lib,
@@ -80,14 +80,14 @@ impl<D: WindowsDllProc> Error<D> {
     }
 }
 
-impl<D: WindowsDllProc> Copy for Error<D> {}
-impl<D: WindowsDllProc> Clone for Error<D> {
+impl<D> Copy for Error<D> {}
+impl<D> Clone for Error<D> {
     fn clone(&self) -> Self {
         *self
     }
 }
 
-impl<D: WindowsDllProc> From<ErrorKind> for Error<D> {
+impl<D> From<ErrorKind> for Error<D> {
     fn from(kind: ErrorKind) -> Self {
         Self {
             kind,
