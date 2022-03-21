@@ -10,21 +10,6 @@ pub use windows_dll_codegen::dll;
 
 use core::marker::PhantomData;
 
-#[derive(Debug, Clone)]
-pub enum Proc {
-    Name(&'static str),
-    Ordinal(u16),
-}
-
-impl core::fmt::Display for Proc {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::Name(name) => name.fmt(f),
-            Self::Ordinal(ordinal) => ordinal.fmt(f),
-        }
-    }
-}
-
 pub trait WindowsDll: Sized + 'static {
     const LEN: usize;
     const LIB: &'static str;
@@ -54,6 +39,21 @@ pub trait WindowsDllProc: Sized {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum Proc {
+    Name(&'static str),
+    Ordinal(u16),
+}
+
+impl core::fmt::Display for Proc {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::Name(name) => name.fmt(f),
+            Self::Ordinal(ordinal) => ordinal.fmt(f),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 #[repr(u8)]
 pub enum ErrorKind {
@@ -65,22 +65,6 @@ pub struct Error<D: WindowsDllProc> {
     pub kind: ErrorKind,
     _dll: PhantomData<D>,
 }
-impl<D: WindowsDllProc> core::fmt::Debug for Error<D> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("Error")
-            .field("kind", &self.kind)
-            .field("lib", &D::Dll::LIB)
-            .field("proc", &D::PROC)
-            .finish()
-    }
-}
-impl<D: WindowsDllProc> Clone for Error<D> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-impl<D: WindowsDllProc> Copy for Error<D> {}
-
 impl<D: WindowsDllProc> Error<D> {
     pub fn lib() -> Self {
         Self {
@@ -95,6 +79,25 @@ impl<D: WindowsDllProc> Error<D> {
         }
     }
 }
+
+impl<D: WindowsDllProc> Copy for Error<D> {}
+impl<D: WindowsDllProc> Clone for Error<D> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<D: WindowsDllProc> From<ErrorKind> for Error<D> {
+    fn from(kind: ErrorKind) -> Self {
+        Self {
+            kind,
+            _dll: PhantomData,
+        }
+    }
+}
+
+impl<D: WindowsDllProc> std::error::Error for Error<D> {}
+
 impl<D: WindowsDllProc> core::fmt::Display for Error<D> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match &self.kind {
@@ -103,12 +106,12 @@ impl<D: WindowsDllProc> core::fmt::Display for Error<D> {
         }
     }
 }
-impl<D: WindowsDllProc> std::error::Error for Error<D> {}
-impl<D: WindowsDllProc> From<ErrorKind> for Error<D> {
-    fn from(kind: ErrorKind) -> Self {
-        Self {
-            kind,
-            _dll: PhantomData,
-        }
+impl<D: WindowsDllProc> core::fmt::Debug for Error<D> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Error")
+            .field("kind", &self.kind)
+            .field("lib", &D::Dll::LIB)
+            .field("proc", &D::PROC)
+            .finish()
     }
 }
