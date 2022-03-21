@@ -110,7 +110,7 @@ extern "system" {
     fn rtl_get_version(lp_version_information: *mut OSVERSIONINFOW) -> NTSTATUS;
 }
 
-fn rtl_get_version_exists() -> bool {
+unsafe fn rtl_get_version_exists() -> bool {
     rtl_get_version::exists()
 }
 ```
@@ -123,9 +123,5 @@ use windows_dll::*;
 extern "system" {
     #[link_name = "RtlGetVersion"]
     fn rtl_get_version(lp_version_information: *mut OSVERSIONINFOW) -> NTSTATUS;
-}
-
-fn rtl_get_version_exists() -> bool {
-    rtl_get_version::exists()
 }
 ```
