@@ -105,6 +105,9 @@ pub fn parse_extern_block(
             pub unsafe fn exists() -> bool {
                 <Self as #crate_name::WindowsDll>::exists()
             }
+            pub unsafe fn free() -> bool {
+                <Self as #crate_name::WindowsDll>::free()
+            }
         }
 
         impl #crate_name::WindowsDll for #dll_type_ident {
