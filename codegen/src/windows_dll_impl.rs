@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use proc_macro_crate::crate_name;
+use proc_macro_crate::{crate_name, FoundCrate};
 use quote::quote;
 use std::iter::once;
 use syn::{
@@ -69,8 +69,16 @@ pub fn parse_extern_block(
     let wide_dll_name = dll_name.encode_utf16().chain(once(0));
     let wide_dll_name = quote! { (&[#(#wide_dll_name),*]).as_ptr() };
 
-    let crate_name = crate_name("windows-dll").unwrap_or_else(|_| "windows_dll".to_string());
-    let crate_name = Ident::new(&crate_name, Span::call_site());
+    let found_crate =
+        crate_name("windows-dll").expect("windows-dll crate not found");
+    let crate_name = match found_crate {
+        FoundCrate::Itself => {
+            Ident::new("windows_dll", Span::call_site())
+        },
+        FoundCrate::Name(name) => {
+            Ident::new(&name, Span::call_site())
+        },
+    };
 
     let dll_type_name = if dll_name.ends_with(".dll") {
         let mut pieces = dll_name.rsplitn(3, |c| c == '.' || c == '\\' || c == '/');
