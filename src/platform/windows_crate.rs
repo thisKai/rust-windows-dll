@@ -58,7 +58,9 @@ impl DllHandle {
         Self(LoadLibraryExW(PCWSTR(lib_file_name), HANDLE(0), flags))
     }
     pub(crate) fn is_invalid(&self) -> bool {
-        self.0.is_invalid()
+        // HINSTANCE::is_invalid does not exist on windows-rs 0.35
+        // Just compare the integer inside to 0 which is what HINSTANCE::is_invalid does
+        self.0.0 == 0
     }
     pub(crate) unsafe fn free(self) -> bool {
         let succeeded = FreeLibrary(self.0);

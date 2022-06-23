@@ -6,13 +6,14 @@ members = [
 
 [package]
 name = "windows-dll"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Kai <thiskaiguy@gmail.com>"]
 edition = "2018"
 description = "Macro for dynamically loading windows dll functions"
 readme = "README.md"
 homepage = "https://github.com/thisKai/rust-windows-dll"
 repository = "https://github.com/thisKai/rust-windows-dll"
+documentation = "https://docs.rs/windows-dll"
 license = "MIT"
 keywords = ["windows", "win32", "dll", "macro", "ffi"]
 categories = ["development-tools::ffi", "external-ffi-bindings", "api-bindings", "os::windows-apis"]
