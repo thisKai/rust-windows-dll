@@ -52,7 +52,6 @@ impl<D: WindowsDll> DllCache<D> {
     unsafe fn load_and_cache_lib(&self) -> DllHandle {
         let handle = DllHandle::load(D::LIB_LPCWSTR, D::FLAGS);
 
-        self.handle.store(handle);
         self.procs.get_or_init(|| {
             let mut procs = Vec::with_capacity(D::LEN);
             for _ in 0..D::LEN {
@@ -60,6 +59,9 @@ impl<D: WindowsDll> DllCache<D> {
             }
             procs
         });
+        // Store the handle *after* initializing `self.procs`. This
+        // is required to avoid a race condition in `get_proc_ptr`.
+        self.handle.store(handle);
 
         handle
     }
@@ -73,6 +75,9 @@ impl<D: WindowsDll> DllCache<D> {
             return Err(ErrorKind::Lib);
         }
 
+        // The unwrap is safe because `self.procs` is guaranteed to
+        // be initialized *before* `self.handle` is set. See
+        // `load_and_cache_lib`.
         let cached_proc = &self.procs.get().unwrap()[cache_index];
 
         cached_proc
