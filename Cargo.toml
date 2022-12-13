@@ -39,7 +39,7 @@ optional = true
 features = ["ntdef", "minwindef", "winerror", "libloaderapi", "winuser"]
 
 [dev-dependencies]
-minifb = "0.22"
+minifb = "0.23"
 
 
 [package.metadata.docs.rs]
