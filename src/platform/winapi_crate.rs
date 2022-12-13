@@ -51,8 +51,11 @@ impl AtomicDllHandle {
 #[repr(transparent)]
 pub(crate) struct DllHandle(HMODULE);
 impl DllHandle {
-    pub(crate) unsafe fn load(lib_file_name: LPCWSTR, flags: flags::LOAD_LIBRARY_FLAGS) -> Self {
-        Self(LoadLibraryExW(lib_file_name, ptr::null_mut(), flags))
+    pub(crate) unsafe fn load(
+        lib_file_name: LPCWSTR,
+        flags: flags::LOAD_LIBRARY_FLAGS,
+    ) -> Option<Self> {
+        Some(Self(LoadLibraryExW(lib_file_name, ptr::null_mut(), flags)))
     }
     pub(crate) fn is_invalid(&self) -> bool {
         self.0.is_null()

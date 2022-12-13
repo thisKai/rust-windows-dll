@@ -36,21 +36,21 @@ impl<D> DllCache<D> {
 
 impl<D: WindowsDll> DllCache<D> {
     pub(crate) unsafe fn lib_exists(&self) -> bool {
-        !self.get().is_invalid()
+        !self.get().map(|lib| lib.is_invalid()).unwrap_or(false)
     }
-    unsafe fn get(&self) -> DllHandle {
+    unsafe fn get(&self) -> Option<DllHandle> {
         let handle = self.handle.load();
 
         let handle = if handle.is_invalid() {
             self.load_and_cache_lib()
         } else {
-            handle
+            Some(handle)
         };
 
         handle
     }
-    unsafe fn load_and_cache_lib(&self) -> DllHandle {
-        let handle = DllHandle::load(D::LIB_LPCWSTR, D::FLAGS);
+    unsafe fn load_and_cache_lib(&self) -> Option<DllHandle> {
+        let handle = DllHandle::load(D::LIB_LPCWSTR, D::FLAGS)?;
 
         self.procs.get_or_init(|| {
             let mut procs = Vec::with_capacity(D::LEN);
@@ -63,14 +63,14 @@ impl<D: WindowsDll> DllCache<D> {
         // is required to avoid a race condition in `get_proc_ptr`.
         self.handle.store(handle);
 
-        handle
+        Some(handle)
     }
     unsafe fn get_proc_ptr(
         &self,
         name: LPCSTR,
         cache_index: usize,
     ) -> Result<DllProcPtr, ErrorKind> {
-        let library = self.get();
+        let library = self.get().ok_or(ErrorKind::Lib)?;
         if library.is_invalid() {
             return Err(ErrorKind::Lib);
         }
