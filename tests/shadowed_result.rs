@@ -39,3 +39,13 @@ mod platform {
     #[allow(non_camel_case_types)]
     pub type SIZE_T = usize;
 }
+
+#[cfg(feature = "windows-sys")]
+mod platform {
+    use core::ffi::c_void;
+    pub use windows_sys::Win32::Foundation::{BOOL, HWND};
+
+    pub type PVOID = *mut c_void;
+    #[allow(non_camel_case_types)]
+    pub type SIZE_T = usize;
+}

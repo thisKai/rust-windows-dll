@@ -45,3 +45,10 @@ mod platform {
 
     pub type ULONG = u32;
 }
+
+#[cfg(feature = "windows-sys")]
+mod platform {
+    pub use windows_sys::{core::PCWSTR as LPCWSTR, Win32::Foundation::BOOL};
+
+    pub type ULONG = u32;
+}

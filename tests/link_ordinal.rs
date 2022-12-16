@@ -24,7 +24,7 @@ mod platform {
     pub use winapi::shared::{minwindef::BOOL, windef::HWND};
 }
 
-#[cfg(feature = "windows")]
+#[cfg(feature = "windows-sys")]
 mod platform {
-    pub use windows::Win32::Foundation::{BOOL, HWND};
+    pub use windows_sys::Win32::Foundation::{BOOL, HWND};
 }

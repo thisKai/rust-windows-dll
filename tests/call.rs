@@ -85,3 +85,41 @@ mod platform {
         }
     }
 }
+
+#[cfg(feature = "windows-sys")]
+mod platform {
+    use super::*;
+    pub use windows_sys::Win32::Foundation::NTSTATUS;
+
+    pub type ULONG = u32;
+    pub type WCHAR = u16;
+
+    #[allow(non_snake_case)]
+    #[inline]
+    fn NT_SUCCESS(status: NTSTATUS) -> bool {
+        status >= 0
+    }
+
+    #[test]
+    fn propagate_errors() -> Result<(), Box<dyn Error>> {
+        unsafe {
+            let mut vi = OSVERSIONINFOW {
+                dwOSVersionInfoSize: 0,
+                dwMajorVersion: 0,
+                dwMinorVersion: 0,
+                dwBuildNumber: 0,
+                dwPlatformId: 0,
+                szCSDVersion: [0; 128],
+            };
+
+            let status = RtlGetVersion(&mut vi as _)?;
+
+            if NT_SUCCESS(status) {
+                dbg!(vi.dwBuildNumber);
+                Ok(())
+            } else {
+                Err("RtlGetVersion error")?
+            }
+        }
+    }
+}
