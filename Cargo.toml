@@ -33,6 +33,11 @@ version = "0.43"
 optional = true
 features = ["Win32_Foundation", "Win32_System_LibraryLoader"]
 
+[dependencies.windows-sys]
+version = "0.42"
+optional = true
+features = ["Win32_Foundation", "Win32_System_LibraryLoader"]
+
 [dependencies.winapi]
 version = "0.3"
 optional = true

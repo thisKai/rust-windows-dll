@@ -7,3 +7,8 @@ pub use winapi_crate::*;
 mod windows_crate;
 #[cfg(feature = "windows")]
 pub use windows_crate::*;
+
+#[cfg(feature = "windows-sys")]
+mod windows_sys_crate;
+#[cfg(feature = "windows-sys")]
+pub use windows_sys_crate::*;
