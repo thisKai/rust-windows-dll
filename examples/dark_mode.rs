@@ -138,7 +138,7 @@ mod platform {
 #[cfg(feature = "windows")]
 mod platform {
     use super::*;
-    use windows::Win32::Foundation::{BOOL, HWND, NTSTATUS};
+    use windows::Win32::Foundation::{BOOL, HWND, NTSTATUS, STATUS_SUCCESS, TRUE};
 
     type DWORD = u32;
     type ULONG = u32;
@@ -178,7 +178,7 @@ mod platform {
             };
             let status = RtlGetVersion(&mut version_info);
 
-            if status.is_ok()
+            if status == STATUS_SUCCESS
                 && version_info.dwMajorVersion == 10
                 && version_info.dwMinorVersion == 0
             {
@@ -195,7 +195,7 @@ mod platform {
     });
 
     pub fn dark_dwm_decorations(minifb_hwnd: *mut c_void, enable_dark_mode: bool) -> bool {
-        let hwnd = HWND(minifb_hwnd as _);
+        let hwnd = minifb_hwnd as _;
 
         #[allow(non_snake_case)]
         type WINDOWCOMPOSITIONATTRIB = u32;
@@ -228,8 +228,7 @@ mod platform {
                 };
 
                 let status = SetWindowCompositionAttribute(hwnd, &mut data);
-
-                status.as_bool()
+                status == TRUE
             }
         } else {
             false
