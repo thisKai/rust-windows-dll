@@ -4,12 +4,9 @@ use core::{
 };
 
 pub(crate) use windows::Win32::Foundation::HINSTANCE;
-use windows::{
-    core::{PCSTR, PCWSTR},
-    Win32::{
-        Foundation::{FARPROC, HANDLE},
-        System::LibraryLoader::{FreeLibrary, GetProcAddress, LoadLibraryExW},
-    },
+use windows::Win32::{
+    Foundation::{FARPROC, INVALID_HANDLE_VALUE, TRUE},
+    System::LibraryLoader::{FreeLibrary, GetProcAddress, LoadLibraryExW},
 };
 
 type NonNullFarProc = unsafe extern "system" fn() -> isize;
@@ -20,7 +17,7 @@ pub type LPCWSTR = *const u16;
 pub type LPCSTR = *const u8;
 
 pub mod flags {
-    pub const NO_FLAGS: LOAD_LIBRARY_FLAGS = LOAD_LIBRARY_FLAGS(0);
+    pub const NO_FLAGS: LOAD_LIBRARY_FLAGS = 0;
 
     pub use windows::Win32::System::LibraryLoader::{
         DONT_RESOLVE_DLL_REFERENCES, LOAD_IGNORE_CODE_AUTHZ_LEVEL, LOAD_LIBRARY_AS_DATAFILE,
@@ -40,10 +37,10 @@ impl AtomicDllHandle {
         Self(AtomicIsize::new(0))
     }
     pub(crate) fn load(&self) -> DllHandle {
-        DllHandle(HINSTANCE(self.0.load(Ordering::SeqCst)))
+        DllHandle(self.0.load(Ordering::SeqCst))
     }
     pub(crate) fn store(&self, handle: DllHandle) {
-        self.0.store(handle.0 .0, Ordering::SeqCst);
+        self.0.store(handle.0, Ordering::SeqCst);
     }
     pub(crate) fn clear(&self) {
         self.0.store(0, Ordering::SeqCst);
@@ -55,20 +52,17 @@ impl AtomicDllHandle {
 pub(crate) struct DllHandle(HINSTANCE);
 impl DllHandle {
     pub(crate) unsafe fn load(lib_file_name: LPCWSTR, flags: flags::LOAD_LIBRARY_FLAGS) -> Self {
-        Self(LoadLibraryExW(PCWSTR(lib_file_name), HANDLE(0), flags))
+        Self(LoadLibraryExW(lib_file_name, 0, flags))
     }
     pub(crate) fn is_invalid(&self) -> bool {
-        // HINSTANCE::is_invalid does not exist on windows-rs 0.35
-        // Just compare the integer inside to 0 which is what HINSTANCE::is_invalid does
-        self.0.0 == 0
+        self.0 == INVALID_HANDLE_VALUE || self.0 == 0
     }
     pub(crate) unsafe fn free(self) -> bool {
         let succeeded = FreeLibrary(self.0);
-
-        succeeded.as_bool()
+        succeeded == TRUE
     }
     pub(crate) unsafe fn get_proc(&self, name: LPCSTR) -> Option<DllProcPtr> {
-        DllProcPtr::new(GetProcAddress(self.0, PCSTR(name)))
+        DllProcPtr::new(GetProcAddress(self.0, name))
     }
 }
 

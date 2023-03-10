@@ -58,6 +58,7 @@ mod platform {
 mod platform {
     use super::*;
     pub use windows::Win32::Foundation::NTSTATUS;
+    use windows::Win32::Foundation::STATUS_SUCCESS;
 
     pub type ULONG = u32;
     pub type WCHAR = u16;
@@ -76,7 +77,7 @@ mod platform {
 
             let status = RtlGetVersion(&mut vi as _)?;
 
-            if status.is_ok() {
+            if status == STATUS_SUCCESS {
                 dbg!(vi.dwBuildNumber);
                 Ok(())
             } else {
