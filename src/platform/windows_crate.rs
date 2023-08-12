@@ -3,7 +3,7 @@ use core::{
     sync::atomic::{AtomicIsize, AtomicUsize, Ordering},
 };
 
-pub(crate) use windows::Win32::Foundation::HINSTANCE;
+pub(crate) use windows::Win32::Foundation::HMODULE as HINSTANCE;
 use windows::{
     core::{PCSTR, PCWSTR},
     Win32::{
@@ -40,10 +40,13 @@ impl AtomicDllHandle {
         Self(AtomicIsize::new(0))
     }
     pub(crate) fn load(&self) -> DllHandle {
-        DllHandle(HINSTANCE(self.0.load(Ordering::SeqCst)))
+        DllHandle(Some(HINSTANCE(self.0.load(Ordering::SeqCst))))
     }
     pub(crate) fn store(&self, handle: DllHandle) {
-        self.0.store(handle.0 .0, Ordering::SeqCst);
+        self.0.store(
+            handle.0.map(|module| module.0).unwrap_or(0),
+            Ordering::SeqCst,
+        );
     }
     pub(crate) fn clear(&self) {
         self.0.store(0, Ordering::SeqCst);
@@ -52,23 +55,26 @@ impl AtomicDllHandle {
 
 #[derive(Clone, Copy)]
 #[repr(transparent)]
-pub(crate) struct DllHandle(HINSTANCE);
+pub(crate) struct DllHandle(Option<HINSTANCE>);
 impl DllHandle {
     pub(crate) unsafe fn load(lib_file_name: LPCWSTR, flags: flags::LOAD_LIBRARY_FLAGS) -> Self {
-        Self(LoadLibraryExW(PCWSTR(lib_file_name), HANDLE(0), flags))
+        Self(LoadLibraryExW(PCWSTR(lib_file_name), HANDLE(0), flags).ok())
     }
     pub(crate) fn is_invalid(&self) -> bool {
-        // HINSTANCE::is_invalid does not exist on windows-rs 0.35
-        // Just compare the integer inside to 0 which is what HINSTANCE::is_invalid does
-        self.0.0 == 0
+        self.0.map(|module| module.is_invalid()).unwrap_or(true)
     }
     pub(crate) unsafe fn free(self) -> bool {
-        let succeeded = FreeLibrary(self.0);
+        if let Some(module) = self.0 {
+            let succeeded = FreeLibrary(module);
 
-        succeeded.as_bool()
+            succeeded.as_bool()
+        } else {
+            true
+        }
     }
     pub(crate) unsafe fn get_proc(&self, name: LPCSTR) -> Option<DllProcPtr> {
-        DllProcPtr::new(GetProcAddress(self.0, PCSTR(name)))
+        self.0
+            .and_then(|module| DllProcPtr::new(GetProcAddress(module, PCSTR(name))))
     }
 }
 
